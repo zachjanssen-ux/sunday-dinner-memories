@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Lora:wght@400;600&family=Caveat:wght@400;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #FDF6EE;
+  --color-linen: #F5EDDF;
+  --color-sunday-brown: #6B4C3B;
+  --color-sienna: #C75B39;
+  --color-honey: #D4A44C;
+  --color-cast-iron: #3D3029;
+  --color-herb: #5B7B5A;
+  --color-tomato: #C4463A;
+  --color-butter: #E8C84A;
+  --color-flour: #FFFFFF;
+  --color-stone: #9B8E82;
+  --color-sage: #A8B5A0;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Lora', Georgia, serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #FDF6EE;
+  font-family: 'Lora', Georgia, serif;
+  color: #6B4C3B;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', Georgia, serif;
+  color: #3D3029;
+}
+
+/* Selection color */
+::selection {
+  background-color: #C75B39;
+  color: #FFFFFF;
+}
+
+::-moz-selection {
+  background-color: #C75B39;
+  color: #FFFFFF;
+}
+
+/* Focus visible ring for accessibility */
+*:focus-visible {
+  outline: 2px solid rgba(199, 91, 57, 0.5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scrollbar styling (webkit) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FDF6EE;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #9B8E82;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6B4C3B;
+}
+
+/* Skeleton shimmer animation */
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Safe area padding for mobile bottom nav */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Print styles */
+@media print {
+  nav, .mobile-nav, aside, .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body {
+    background-color: white;
+    color: black;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: black;
+  }
+}

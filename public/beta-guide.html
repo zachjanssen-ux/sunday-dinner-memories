@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sunday Dinner Memories — Beta Tester Guide</title>
+  <link rel="icon" href="/icon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Lora:wght@400;600&family=Caveat:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #FDF6EE;
+      --linen: #F5EDDF;
+      --sunday-brown: #6B4C3B;
+      --sienna: #C75B39;
+      --honey: #D4A44C;
+      --cast-iron: #3D3029;
+      --herb: #5B7B5A;
+      --tomato: #C4463A;
+      --butter: #E8C84A;
+      --flour: #FFFFFF;
+      --stone: #9B8E82;
+      --sage: #A8B5A0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--cream);
+      font-family: 'Lora', Georgia, serif;
+      color: var(--sunday-brown);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Playfair Display', Georgia, serif;
+      color: var(--cast-iron);
+      line-height: 1.3;
+    }
+
+    .handwritten {
+      font-family: 'Caveat', cursive;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, var(--sienna), var(--tomato));
+      color: var(--flour);
+      text-align: center;
+      padding: 3rem 1.5rem 2.5rem;
+    }
+
+    .hero img {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .hero h1 {
+      color: var(--flour);
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .hero .subtitle {
+      font-family: 'Caveat', cursive;
+      font-size: 1.5rem;
+      opacity: 0.95;
+      margin-bottom: 1rem;
+    }
+
+    .hero p {
+      font-size: 1rem;
+      opacity: 0.9;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* Beta badge */
+    .beta-badge {
+      display: inline-block;
+      background: var(--honey);
+      color: var(--cast-iron);
+      font-family: 'Lora', Georgia, serif;
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 100px;
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Container */
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    /* Table of Contents */
+    .toc {
+      background: var(--flour);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    .toc h3 {
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+      padding: 0;
+    }
+
+    .toc li {
+      counter-increment: toc-counter;
+      margin-bottom: 0.5rem;
+    }
+
+    .toc li a {
+      color: var(--sienna);
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      transition: color 0.2s;
+    }
+
+    .toc li a:hover { color: var(--tomato); }
+
+    .toc li a::before {
+      content: counter(toc-counter);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--linen);
+      color: var(--sienna);
+      font-weight: 600;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    /* Sections */
+    section {
+      padding: 2.5rem 0 1rem;
+    }
+
+    section h2 {
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--linen);
+    }
+
+    section h3 {
+      font-size: 1.15rem;
+      margin: 1.5rem 0 0.5rem;
+      color: var(--sienna);
+    }
+
+    section p {
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+
+    /* Step cards */
+    .step {
+      background: var(--flour);
+      border-radius: 16px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--sienna);
+      color: var(--flour);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .step-content { flex: 1; }
+    .step-content strong { color: var(--cast-iron); }
+    .step-content p { margin-bottom: 0.5rem; font-size: 0.95rem; }
+
+    /* Screenshot placeholder */
+    .screenshot-placeholder {
+      background: var(--linen);
+      border: 2px dashed var(--stone);
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--stone);
+    }
+
+    .screenshot-placeholder .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .screenshot-placeholder .label {
+      font-family: 'Caveat', cursive;
+      font-size: 1.2rem;
+      color: var(--sunday-brown);
+    }
+
+    /* Tip box */
+    .tip-box {
+      background: linear-gradient(135deg, #f0f7ef, #e8f0e7);
+      border-left: 4px solid var(--herb);
+      border-radius: 0 12px 12px 0;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .tip-box .tip-label {
+      font-weight: 600;
+      color: var(--herb);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+
+    .tip-box p { margin-bottom: 0.5rem; font-size: 0.95rem; }
+    .tip-box p:last-child { margin-bottom: 0; }
+
+    /* Warning box */
+    .warning-box {
+      background: linear-gradient(135deg, #fef5ee, #fdf0e4);
+      border-left: 4px solid var(--honey);
+      border-radius: 0 12px 12px 0;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .warning-box .warning-label {
+      font-weight: 600;
+      color: var(--honey);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+
+    /* Feature list */
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--linen);
+      font-size: 0.95rem;
+    }
+
+    .feature-list li:last-child { border-bottom: none; }
+
+    .feature-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--linen);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    /* Feedback checklist */
+    .checklist {
+      list-style: none;
+      padding: 0;
+    }
+
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      font-size: 0.95rem;
+    }
+
+    .checklist li::before {
+      content: '';
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--stone);
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* FAQ */
+    .faq-item {
+      background: var(--flour);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+    }
+
+    .faq-item h4 {
+      font-size: 1rem;
+      color: var(--sienna);
+      margin-bottom: 0.5rem;
+    }
+
+    .faq-item p {
+      font-size: 0.95rem;
+      margin-bottom: 0;
+    }
+
+    /* CTA box */
+    .cta-box {
+      background: linear-gradient(135deg, var(--sienna), var(--tomato));
+      color: var(--flour);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      margin: 2rem 0;
+    }
+
+    .cta-box h3 {
+      color: var(--flour);
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .cta-box p {
+      opacity: 0.9;
+      margin-bottom: 0;
+    }
+
+    /* Contact card */
+    .contact-card {
+      background: var(--flour);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin: 2rem 0;
+    }
+
+    .contact-card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .contact-card p { font-size: 0.95rem; }
+
+    .contact-card a {
+      color: var(--sienna);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem 3rem;
+      color: var(--stone);
+      font-size: 0.85rem;
+    }
+
+    footer .handwritten {
+      font-size: 1.3rem;
+      color: var(--sunday-brown);
+      margin-bottom: 0.5rem;
+    }
+
+    /* Divider */
+    .divider {
+      width: 60px;
+      height: 3px;
+      background: var(--honey);
+      border-radius: 3px;
+      margin: 1.5rem auto;
+    }
+
+    /* Responsive */
+    @media (min-width: 768px) {
+      .hero { padding: 4rem 2rem 3rem; }
+      .hero h1 { font-size: 2.5rem; }
+      .hero .subtitle { font-size: 1.8rem; }
+      section h2 { font-size: 1.8rem; }
+      .step { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <img src="/logo.png" alt="Sunday Dinner Memories" />
+    <div class="beta-badge">Beta Tester Guide</div>
+    <h1>Sunday Dinner Memories</h1>
+    <p class="subtitle handwritten">Welcome back to the kitchen!</p>
+    <p>You're one of our very first testers. Thank you for helping us preserve family recipes for the next generation.</p>
+  </header>
+
+  <div class="container">
+
+    <!-- Table of Contents -->
+    <nav class="toc">
+      <h3>What's Inside</h3>
+      <ol>
+        <li><a href="#welcome">Welcome</a></li>
+        <li><a href="#getting-started">Getting Started</a></li>
+        <li><a href="#creating-account">Creating Your Account</a></li>
+        <li><a href="#scanning">Scanning Your First Recipe Card</a></li>
+        <li><a href="#other-ways">Other Ways to Add Recipes</a></li>
+        <li><a href="#inviting">Inviting Family Members</a></li>
+        <li><a href="#feedback">What We Need From You</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#help">Need Help?</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1. Welcome -->
+    <section id="welcome">
+      <h2>Welcome!</h2>
+      <p>
+        First off — <strong>thank you</strong>. You're one of the first people to try Sunday Dinner Memories, and your feedback is going to help shape this app for families everywhere.
+      </p>
+      <p>
+        The idea is simple: those handwritten recipe cards sitting in a drawer, the ones from your mom or grandma — we want to help you save them forever. Snap a photo, and the app reads the handwriting, organizes the recipe, and shares it with your whole family.
+      </p>
+      <p>
+        This is still early. Things might not be perfect yet. That's exactly why we need you. Try it out, tell us what works and what doesn't, and together we'll make it something your whole family will love.
+      </p>
+      <p class="handwritten" style="font-size: 1.4rem; color: var(--sienna); margin-top: 1.5rem;">
+        Let's get those recipes off the counter and into the cloud.
+      </p>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 2. Getting Started -->
+    <section id="getting-started">
+      <h2>Getting Started</h2>
+      <p>Sunday Dinner Memories works right in your phone's web browser — no app store download needed. Here's how to open it:</p>
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p><strong>Open the link on your phone.</strong> Use whatever browser you normally use (Safari on iPhone, Chrome on Android).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p><strong>Add it to your home screen</strong> so it feels like a real app. Here's how:</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">📱</span>
+        <span class="label">Screenshot: "Add to Home Screen" button in your browser's share menu</span>
+      </div>
+
+      <h3>On iPhone (Safari)</h3>
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p>Tap the <strong>Share button</strong> at the bottom of Safari (the square with an arrow pointing up).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p>Scroll down and tap <strong>"Add to Home Screen"</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p>Tap <strong>"Add"</strong> in the top right. Done! You'll see the app icon on your home screen.</p>
+        </div>
+      </div>
+
+      <h3>On Android (Chrome)</h3>
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p>Tap the <strong>three dots menu</strong> in the top right of Chrome.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p>Tap <strong>"Add"</strong>. The app will appear on your home screen like any other app.</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">🏠</span>
+        <span class="label">Screenshot: The Sunday Dinner Memories app icon on a phone's home screen</span>
+      </div>
+
+      <div class="tip-box">
+        <div class="tip-label">Tip</div>
+        <p>Adding it to your home screen gives you the best experience — it opens full-screen without the browser toolbar.</p>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 3. Creating Your Account -->
+    <section id="creating-account">
+      <h2>Creating Your Account</h2>
+      <p>Setting up takes about 30 seconds. Promise.</p>
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p><strong>Open the app</strong> and tap <strong>"Create Account"</strong>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p><strong>Enter your email</strong> and pick a password. (Use something you'll remember!)</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">✉️</span>
+        <span class="label">Screenshot: The sign-up screen with email and password fields</span>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p><strong>Create your family.</strong> Give your family kitchen a name — "The Johnson Kitchen," "Grandma Rose's Recipes," whatever feels right.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <p><strong>You're in!</strong> You'll land on your family's recipe dashboard. It's empty for now — let's fix that.</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">🍳</span>
+        <span class="label">Screenshot: Empty dashboard with the "Add Recipe" button visible</span>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 4. Scanning Your First Recipe Card -->
+    <section id="scanning">
+      <h2>Scanning Your First Recipe Card</h2>
+      <p>
+        This is the big one. Grab a recipe card — handwritten, typed, printed, whatever you've got — and let's turn it digital.
+      </p>
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p>From the dashboard, tap the <strong>"Add Recipe"</strong> button (the orange button with a + sign).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p>Choose <strong>"Scan Recipe Card."</strong></p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">📷</span>
+        <span class="label">Screenshot: Import options showing "Scan Recipe Card" highlighted</span>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p><strong>Point your camera at the recipe card.</strong> Try to get the whole card in the frame. Tap the capture button when it looks good.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <p><strong>Wait a moment.</strong> The AI is reading the handwriting and figuring out what's an ingredient, what's a step, and what the recipe is called. This usually takes 5-15 seconds.</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">✨</span>
+        <span class="label">Screenshot: The loading screen that says "Reading your recipe..."</span>
+      </div>
+
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <p><strong>Review the results.</strong> You'll see the recipe title, ingredients, and instructions all filled in. Look it over — does everything look right?</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">6</div>
+        <div class="step-content">
+          <p><strong>Edit anything that needs fixing.</strong> The AI is smart, but handwriting is hard. If it misread "1 tsp" as "1 tap," just tap the field and fix it. No big deal.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">7</div>
+        <div class="step-content">
+          <p><strong>Tap "Save Recipe."</strong> That's it! Your recipe card is now preserved forever in your family's digital kitchen.</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">🎉</span>
+        <span class="label">Screenshot: A completed recipe card in the app after scanning</span>
+      </div>
+
+      <h3>Tips for the Best Scan</h3>
+
+      <div class="tip-box">
+        <div class="tip-label">Lighting</div>
+        <p>Good lighting makes a huge difference. Natural light near a window is best. Avoid shadows falling across the card.</p>
+      </div>
+
+      <div class="tip-box">
+        <div class="tip-label">Surface</div>
+        <p>Lay the card flat on a table or counter. Don't hold it in the air — it's harder to keep steady.</p>
+      </div>
+
+      <div class="tip-box">
+        <div class="tip-label">Hold Steady</div>
+        <p>Take a second to hold your phone still before tapping the capture button. A blurry photo makes the AI's job harder.</p>
+      </div>
+
+      <div class="tip-box">
+        <div class="tip-label">Handwriting</div>
+        <p>Clear handwriting works best, but the AI can handle most handwriting styles. If some words are hard to read even for a person, the AI might struggle too — that's okay, you can edit it.</p>
+      </div>
+
+      <h3>What If the Scan Isn't Perfect?</h3>
+      <p>No worries. Here's what to do:</p>
+
+      <div class="warning-box">
+        <div class="warning-label">Fix & Edit</div>
+        <p>After scanning, every field is editable. Tap any ingredient, instruction, or the recipe title to fix it. The original photo is always saved so you can reference it.</p>
+      </div>
+
+      <p>If a scan went really sideways, you can try again with a new photo — just go back and scan it again. Different lighting or angle sometimes helps.</p>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 5. Other Ways to Add Recipes -->
+    <section id="other-ways">
+      <h2>Other Ways to Add Recipes</h2>
+      <p>Scanning isn't the only way. Here are your other options:</p>
+
+      <ul class="feature-list">
+        <li>
+          <div class="feature-icon">📸</div>
+          <div>
+            <strong>Photo Upload</strong> — Already have a photo of the recipe card in your camera roll? Upload it directly instead of taking a new photo.
+          </div>
+        </li>
+        <li>
+          <div class="feature-icon">⌨️</div>
+          <div>
+            <strong>Type It In</strong> — Know a recipe by heart? Type the title, ingredients, and instructions manually. Great for recipes that live in your head.
+          </div>
+        </li>
+      </ul>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">➕</span>
+        <span class="label">Screenshot: The "Add Recipe" menu showing all three options</span>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 6. Inviting Family Members -->
+    <section id="inviting">
+      <h2>Inviting Family Members</h2>
+      <p>Recipes are better when they're shared. Here's how to invite your family:</p>
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p>Go to the <strong>Family</strong> page (tap the people icon in the bottom navigation).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p>Tap <strong>"Invite Family Members."</strong></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p>You'll see two options:</p>
+          <p><strong>Family Code</strong> — A short code you can text or tell someone. They enter it when they sign up.</p>
+          <p><strong>Viewer Link</strong> — A link for people who just want to browse recipes (they can view but not add or edit).</p>
+        </div>
+      </div>
+
+      <div class="screenshot-placeholder">
+        <span class="icon">👨‍👩‍👧‍👦</span>
+        <span class="label">Screenshot: The family invite screen with the code and share options</span>
+      </div>
+
+      <div class="tip-box">
+        <div class="tip-label">Tip</div>
+        <p>You can text the invite link directly to family members — just tap the "Share" button and pick your messaging app.</p>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 7. What We Need From You -->
+    <section id="feedback">
+      <h2>What We Need From You</h2>
+      <p>
+        Your honest feedback is the most valuable thing you can give us. There are no wrong answers. Here's what we'd love to know after you try scanning a recipe card:
+      </p>
+
+      <div class="faq-item" style="background: var(--linen);">
+        <h4>After each scan, think about:</h4>
+        <ul class="checklist">
+          <li>Did the scan work on the first try?</li>
+          <li>What type of recipe card was it? (Handwritten, printed, index card, full page, from a magazine, etc.)</li>
+          <li>Did the AI get the recipe title right?</li>
+          <li>Were the ingredients accurate?</li>
+          <li>Were the instructions in the right order?</li>
+          <li>What went wrong, if anything?</li>
+          <li>How would you rate the experience? (1 = frustrating, 5 = delightful)</li>
+          <li>Any suggestions for how we could make it better?</li>
+        </ul>
+      </div>
+
+      <p>
+        You'll find a feedback button inside the app (look for the little chat bubble in the bottom corner). Tap it anytime to send us your thoughts. You can also use the beta banner at the top of the screen.
+      </p>
+
+      <div class="cta-box">
+        <h3>Every piece of feedback helps</h3>
+        <p>Even "this was confusing" or "I loved this" — it all matters. Don't hold back.</p>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 8. FAQ -->
+    <section id="faq">
+      <h2>Frequently Asked Questions</h2>
+
+      <div class="faq-item">
+        <h4>Is this app free?</h4>
+        <p>Yes! During the beta period, everything is completely free. We're building this with love and we want you to try it with no strings attached.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>Will my recipes be saved if the app updates?</h4>
+        <p>Absolutely. Your recipes are stored safely in the cloud. They'll be there whenever you come back, even if we update the app.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>Can other people see my family's recipes?</h4>
+        <p>Only people you invite to your family can see your recipes. Your family kitchen is private to your family.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>What if I scan a recipe and it's totally wrong?</h4>
+        <p>Delete it and try again! Sometimes a different angle or better lighting does the trick. And tell us about it — that feedback helps us improve the scanning.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>Can I scan recipes that are typed or printed, not handwritten?</h4>
+        <p>Yes! Typed and printed recipe cards usually scan even better than handwritten ones. Try it with whatever you have.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>Do I need an internet connection?</h4>
+        <p>Yes, for now. The scanning feature needs the internet to process the photo. You can browse recipes you've already saved even with a weak connection.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>My camera isn't working in the app. What do I do?</h4>
+        <p>Make sure you've given the app permission to use your camera. On iPhone, go to Settings &gt; Safari &gt; Camera and set it to "Allow." On Android, the app will ask when you first try to scan.</p>
+      </div>
+
+      <div class="faq-item">
+        <h4>Can I add recipes from a website or cookbook?</h4>
+        <p>Right now, you can scan physical cards, upload photos, or type recipes manually. We're working on more import options for the future!</p>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- 9. Need Help? -->
+    <section id="help">
+      <h2>Need Help?</h2>
+      <p>Stuck on something? We're here for you. Reach out anytime:</p>
+
+      <div class="contact-card">
+        <h3>Get in Touch</h3>
+        <p>Text Zach at <a href="tel:+15555555555">[phone number]</a></p>
+        <p>or email <a href="mailto:zach@example.com">[email address]</a></p>
+        <p style="margin-top: 1rem; color: var(--stone); font-size: 0.85rem;">
+          Don't be shy — no question is too small. I'd rather hear from you than have you stuck.
+        </p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p class="handwritten">Made with love for family kitchens everywhere.</p>
+      <p>Sunday Dinner Memories &middot; Beta Version</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
