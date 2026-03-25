@@ -18,8 +18,7 @@ const FEATURE_LABELS = {
   imageGen: 'AI Cover Art',
 }
 
-// eslint-disable-next-line no-unused-vars
-export default function PlanGate({ feature, children }) {
+export default function PlanGate({ feature, children, inline = false }) {
   const { currentFamily } = useAuthStore()
   const { subscription, loading, fetchSubscription, isFeatureAllowed, getRequiredPlan } =
     useSubscriptionStore()
@@ -40,7 +39,7 @@ export default function PlanGate({ feature, children }) {
   const planName = PLAN_NAMES[requiredPlan] || 'Homemade'
   const featureLabel = FEATURE_LABELS[feature] || feature
 
-  return (
+  const upgradeCard = (
     <div className="bg-linen rounded-xl p-8 text-center max-w-lg mx-auto mt-8 border border-stone/20 shadow-sm">
       <div className="w-14 h-14 bg-honey/20 rounded-full flex items-center justify-center mx-auto mb-5">
         <Sparkles className="w-7 h-7 text-honey" />
@@ -62,4 +61,10 @@ export default function PlanGate({ feature, children }) {
       </Link>
     </div>
   )
+
+  if (inline) {
+    return upgradeCard
+  }
+
+  return <Layout>{upgradeCard}</Layout>
 }
