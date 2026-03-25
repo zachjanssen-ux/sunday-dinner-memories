@@ -22,56 +22,34 @@ export default function CreateFamily() {
     try {
       const inviteCode = crypto.randomUUID().slice(0, 8).toUpperCase()
       const viewerToken = crypto.randomUUID()
+      const displayName = user.email?.split('@')[0] || 'Admin'
 
-      console.log('Creating family...')
-
-      // Create family
-      const { data: family, error: famErr } = await supabase
-        .from('families')
-        .insert({
-          name: familyName.trim(),
-          invite_code: inviteCode,
-          viewer_share_token: viewerToken,
-        })
-        .select()
-        .single()
-
-      if (famErr) {
-        console.error('Family create error:', famErr)
-        setError(`Family creation failed: ${famErr.message}`)
-        setLoading(false)
-        return
-      }
-
-      console.log('Family created:', family.id)
-
-      // Add user as admin
-      const { error: memErr } = await supabase.from('family_members').insert({
-        family_id: family.id,
-        user_id: user.id,
-        display_name: user.email?.split('@')[0] || 'Admin',
-        role: 'admin',
+      // Use server-side function to create family + member in one call
+      // This bypasses RLS issues with INSERT → SELECT chains
+      const { data, error: rpcErr } = await supabase.rpc('create_family_with_admin', {
+        p_family_name: familyName.trim(),
+        p_invite_code: inviteCode,
+        p_viewer_share_token: viewerToken,
+        p_user_id: user.id,
+        p_display_name: displayName,
       })
 
-      if (memErr) {
-        console.error('Member create error:', memErr)
-        setError(`Member creation failed: ${memErr.message}`)
+      if (rpcErr) {
+        console.error('Create family RPC error:', rpcErr)
+        setError(`Failed to create family: ${rpcErr.message}`)
         setLoading(false)
         return
       }
 
-      console.log('Member created, fetching...')
-
-      // Refresh auth state
+      // Refresh auth state (non-blocking)
       try {
         await fetchMember(user.id)
       } catch (fetchErr) {
         console.error('fetchMember error (non-blocking):', fetchErr)
-        // Don't block on this — the family was created successfully
       }
 
       setCreated({
-        name: family.name,
+        name: familyName.trim(),
         inviteCode,
         viewerLink: `${window.location.origin}/view/${viewerToken}`,
       })
