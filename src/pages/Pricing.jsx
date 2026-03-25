@@ -90,10 +90,6 @@ export default function Pricing() {
       navigate('/register')
       return
     }
-    if (!currentFamily) {
-      toast.error('Create or join a family first.')
-      return
-    }
 
     setLoadingTier(tier.id)
     try {
@@ -102,7 +98,7 @@ export default function Pricing() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           priceId: tier.priceId,
-          familyId: currentFamily.id,
+          familyId: currentFamily?.id || 'pending',
           userId: user.id,
           promoCode: promoCode.trim() || undefined,
         }),
