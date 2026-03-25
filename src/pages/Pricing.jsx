@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 import useSubscriptionStore from '../store/subscriptionStore'
-import stripePromise from '../lib/stripe'
 import Layout from '../components/layout/Layout'
 import { toast } from 'react-hot-toast'
 import {
@@ -112,9 +111,8 @@ export default function Pricing() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to create checkout')
 
-      const stripe = await stripePromise
-      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId })
-      if (error) throw error
+      // Redirect to Stripe Checkout URL
+      window.location.href = data.url
     } catch (err) {
       console.error('Checkout error:', err)
       toast.error(err.message || 'Failed to start checkout')

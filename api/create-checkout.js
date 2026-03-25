@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create(sessionConfig)
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
-    return res.status(200).json({ sessionId: session.id })
+    return res.status(200).json({ sessionId: session.id, url: session.url })
   } catch (error) {
     console.error('Create checkout error:', error)
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
