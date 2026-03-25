@@ -32,8 +32,12 @@ const useAuthStore = create((set, get) => ({
   },
 
   logout: async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Sign out error:', err)
+    }
+    // Always clear state, even if signOut fails
     set({ user: null, currentMember: null, currentFamily: null })
   },
 
