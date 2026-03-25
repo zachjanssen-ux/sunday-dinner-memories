@@ -10,8 +10,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB — accounts for @react-pdf/renderer
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Only cache the HTML shell and assets — NOT the JS bundle during beta
+        globPatterns: ['**/*.{css,html,ico,png,svg,woff,woff2}'],
+        // Force new service worker to take over immediately
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             // Cache Google Fonts stylesheets
