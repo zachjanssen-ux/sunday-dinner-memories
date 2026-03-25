@@ -28,6 +28,7 @@ import PublicRecipe from './pages/PublicRecipe'
 import SearchPage from './pages/SearchPage'
 import Pricing from './pages/Pricing'
 import BillingPage from './pages/BillingPage'
+import LandingPage from './pages/LandingPage'
 import NotFound from './pages/NotFound'
 import useAuthStore from './store/authStore'
 import { Loader2 } from 'lucide-react'
@@ -48,7 +49,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
