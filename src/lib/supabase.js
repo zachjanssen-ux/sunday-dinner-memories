@@ -5,13 +5,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Prevents lock contention errors when multiple auth requests fire
-    lock: 'no-op',
-    // Persist session in localStorage
+    // Custom lock that skips the Navigator Lock API to avoid contention errors
+    lock: async (name, acquireTimeout, fn) => {
+      return await fn()
+    },
     persistSession: true,
-    // Auto-refresh token
     autoRefreshToken: true,
-    // Detect session from URL (for OAuth redirects)
     detectSessionInUrl: true,
   },
 })

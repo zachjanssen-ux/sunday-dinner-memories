@@ -23,6 +23,8 @@ export default function CreateFamily() {
       const inviteCode = crypto.randomUUID().slice(0, 8).toUpperCase()
       const viewerToken = crypto.randomUUID()
 
+      console.log('Creating family...')
+
       // Create family
       const { data: family, error: famErr } = await supabase
         .from('families')
@@ -35,10 +37,13 @@ export default function CreateFamily() {
         .single()
 
       if (famErr) {
-        setError(famErr.message)
+        console.error('Family create error:', famErr)
+        setError(`Family creation failed: ${famErr.message}`)
         setLoading(false)
         return
       }
+
+      console.log('Family created:', family.id)
 
       // Add user as admin
       const { error: memErr } = await supabase.from('family_members').insert({
@@ -49,19 +54,30 @@ export default function CreateFamily() {
       })
 
       if (memErr) {
-        setError(memErr.message)
+        console.error('Member create error:', memErr)
+        setError(`Member creation failed: ${memErr.message}`)
         setLoading(false)
         return
       }
 
-      await fetchMember(user.id)
+      console.log('Member created, fetching...')
+
+      // Refresh auth state
+      try {
+        await fetchMember(user.id)
+      } catch (fetchErr) {
+        console.error('fetchMember error (non-blocking):', fetchErr)
+        // Don't block on this — the family was created successfully
+      }
+
       setCreated({
         name: family.name,
         inviteCode,
         viewerLink: `${window.location.origin}/view/${viewerToken}`,
       })
-    } catch {
-      setError('Something went wrong. Try again.')
+    } catch (err) {
+      console.error('Create family exception:', err)
+      setError(err.message || 'Something went wrong. Try again.')
     } finally {
       setLoading(false)
     }
