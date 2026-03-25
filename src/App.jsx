@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import ProtectedRoute from './components/guards/ProtectedRoute'
 import ActiveMemberGate from './components/guards/ActiveMemberGate'
+import PlanGate from './components/guards/PlanGate'
 import InstallPrompt from './components/pwa/InstallPrompt'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -25,6 +26,8 @@ import MealPlanPage from './pages/MealPlanPage'
 import ShoppingListPage from './pages/ShoppingListPage'
 import PublicRecipe from './pages/PublicRecipe'
 import SearchPage from './pages/SearchPage'
+import Pricing from './pages/Pricing'
+import BillingPage from './pages/BillingPage'
 import NotFound from './pages/NotFound'
 import useAuthStore from './store/authStore'
 import { Loader2 } from 'lucide-react'
@@ -151,12 +154,14 @@ function AppRoutes() {
         }
       />
 
-      {/* Printable Cookbook routes — Phase 6 */}
+      {/* Printable Cookbook routes — Phase 6 (Heirloom plan required) */}
       <Route
         path="/cookbooks/printable"
         element={
           <ProtectedRoute>
-            <PrintableCookbooksPage />
+            <PlanGate feature="cookbookBuilder">
+              <PrintableCookbooksPage />
+            </PlanGate>
           </ProtectedRoute>
         }
       />
@@ -165,7 +170,9 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ActiveMemberGate>
-              <CookbookBuilder />
+              <PlanGate feature="cookbookBuilder">
+                <CookbookBuilder />
+              </PlanGate>
             </ActiveMemberGate>
           </ProtectedRoute>
         }
@@ -175,7 +182,9 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ActiveMemberGate>
-              <CookbookBuilder />
+              <PlanGate feature="cookbookBuilder">
+                <CookbookBuilder />
+              </PlanGate>
             </ActiveMemberGate>
           </ProtectedRoute>
         }
@@ -191,12 +200,14 @@ function AppRoutes() {
         }
       />
 
-      {/* Meal Plan & Shopping List routes — Phase 7 */}
+      {/* Meal Plan & Shopping List routes — Phase 7 (Homemade+ plan required) */}
       <Route
         path="/meal-plan"
         element={
           <ProtectedRoute>
-            <MealPlanPage />
+            <PlanGate feature="mealPlan">
+              <MealPlanPage />
+            </PlanGate>
           </ProtectedRoute>
         }
       />
@@ -204,7 +215,9 @@ function AppRoutes() {
         path="/shopping-list"
         element={
           <ProtectedRoute>
-            <ShoppingListPage />
+            <PlanGate feature="shoppingList">
+              <ShoppingListPage />
+            </PlanGate>
           </ProtectedRoute>
         }
       />
@@ -212,7 +225,30 @@ function AppRoutes() {
         path="/shopping-list/:id"
         element={
           <ProtectedRoute>
-            <ShoppingListPage />
+            <PlanGate feature="shoppingList">
+              <ShoppingListPage />
+            </PlanGate>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Pricing — no auth required (marketing page) */}
+      <Route path="/pricing" element={<Pricing />} />
+
+      {/* Billing — admin only */}
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
           </ProtectedRoute>
         }
       />

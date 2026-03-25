@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 
 const RECIPE_EXTRACTION_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the following text into valid JSON:
 {
@@ -180,10 +181,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { url, recipeOnly = true } = req.body
+    const { url, recipeOnly = true, familyId, userId } = req.body
 
     if (!url) {
       return res.status(400).json({ error: 'URL is required' })
+    }
+
+    // Check usage limits if familyId provided
+    if (familyId) {
+      const check = await checkUsageLimits(familyId, 'scan')
+      if (!check.allowed) {
+        Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
     }
 
     // Fetch the page
@@ -203,9 +213,12 @@ export default async function handler(req, res) {
 
     const html = await response.text()
 
-    // Tier 1: Try JSON-LD
+    // Tier 1: Try JSON-LD (no AI call needed, so record as scan but no cost)
     const jsonLdRecipe = extractJsonLdRecipe(html)
     if (jsonLdRecipe) {
+      if (familyId && userId) {
+        await recordUsage(familyId, userId, 'scan', 0, 'json-ld')
+      }
       Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
       return res.status(200).json({
         ...jsonLdRecipe,
@@ -246,6 +259,11 @@ export default async function handler(req, res) {
     }
 
     parsed._source = 'ai'
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'scan', 0, MODELS.TEXT)
+    }
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
     return res.status(200).json(parsed)

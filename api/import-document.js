@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
 
@@ -38,10 +39,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { file, fileType } = req.body
+    const { file, fileType, familyId, userId } = req.body
 
     if (!file || !fileType) {
       return res.status(400).json({ error: 'File data and fileType are required' })
+    }
+
+    // Check usage limits if familyId provided
+    if (familyId) {
+      const check = await checkUsageLimits(familyId, 'scan')
+      if (!check.allowed) {
+        Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
     }
 
     const buffer = Buffer.from(file, 'base64')
@@ -89,6 +99,11 @@ export default async function handler(req, res) {
       } else {
         throw new Error('Could not parse AI response as JSON')
       }
+    }
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'scan', 0, MODELS.TEXT)
     }
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))

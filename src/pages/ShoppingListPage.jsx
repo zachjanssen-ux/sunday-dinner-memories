@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 import useShoppingListStore from '../store/shoppingListStore'
 import Layout from '../components/layout/Layout'
+import PlanGate from '../components/guards/PlanGate'
 import PrintView from '../components/shopping/PrintView'
 import { formatQuantity } from '../lib/utils'
 import {
@@ -187,6 +188,7 @@ export default function ShoppingListPage() {
 
   return (
     <Layout>
+      <PlanGate feature="shoppingList">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -482,6 +484,7 @@ export default function ShoppingListPage() {
           </div>
         )}
       </div>
+      </PlanGate>
     </Layout>
   )
 }

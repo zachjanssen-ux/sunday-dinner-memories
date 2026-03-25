@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 
 const client = getOpenRouterClient()
 
@@ -7,10 +8,22 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { ingredients } = req.body
+  const { ingredients, familyId, userId } = req.body
 
   if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
     return res.status(400).json({ error: 'ingredients array is required' })
+  }
+
+  // Check usage limits if familyId provided
+  if (familyId) {
+    try {
+      const check = await checkUsageLimits(familyId, 'mealPlan')
+      if (!check.allowed) {
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
+    } catch (err) {
+      console.error('Usage check error:', err)
+    }
   }
 
   try {
@@ -42,6 +55,11 @@ JSON response:`,
     }
 
     const categories = JSON.parse(jsonStr)
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'mealPlan', 0, MODELS.TEXT)
+    }
 
     return res.status(200).json({ categories })
   } catch (err) {

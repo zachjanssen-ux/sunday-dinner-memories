@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 import { createClient } from '@supabase/supabase-js'
 
 const corsHeaders = {
@@ -19,10 +20,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, familyId, history } = req.body
+    const { message, familyId, history, userId } = req.body
 
     if (!message || !familyId) {
       return res.status(400).json({ error: 'Missing message or familyId' })
+    }
+
+    // Check usage limits
+    if (familyId) {
+      const check = await checkUsageLimits(familyId, 'aiChat')
+      if (!check.allowed) {
+        Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
     }
 
     const supabase = createClient(
@@ -94,6 +104,11 @@ ${recipes && recipes.length > 0 ? `Family recipe collection (${recipes.length} r
       const match = m.match(/([a-f0-9-]{36})/)
       return match ? match[1] : null
     }).filter(Boolean)
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'aiChat', 0, MODELS.CHAT)
+    }
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
     return res.status(200).json({

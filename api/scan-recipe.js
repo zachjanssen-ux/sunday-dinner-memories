@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 
 const RECIPE_EXTRACTION_PROMPT = `You are a recipe extraction assistant. Analyze this image of a recipe card and extract the following into valid JSON:
 {
@@ -37,10 +38,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { image, mimeType } = req.body
+    const { image, mimeType, familyId, userId } = req.body
 
     if (!image) {
       return res.status(400).json({ error: 'No image data provided' })
+    }
+
+    // Check usage limits if familyId provided
+    if (familyId) {
+      const check = await checkUsageLimits(familyId, 'scan')
+      if (!check.allowed) {
+        Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
     }
 
     const client = getOpenRouterClient()
@@ -80,6 +90,11 @@ export default async function handler(req, res) {
       } else {
         throw new Error('Could not parse AI response as JSON')
       }
+    }
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'scan', 0, MODELS.VISION)
     }
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))

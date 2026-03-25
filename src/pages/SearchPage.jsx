@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 import useRecipeStore from '../store/recipeStore'
 import useSearchStore from '../store/searchStore'
+import useSubscriptionStore from '../store/subscriptionStore'
 import Layout from '../components/layout/Layout'
+import PlanGate from '../components/guards/PlanGate'
 import SearchBar from '../components/search/SearchBar'
 import AISearchChat from '../components/search/AISearchChat'
 import RecipeCard from '../components/recipes/RecipeCard'
@@ -101,9 +103,11 @@ export default function SearchPage() {
           )}
         </div>
 
-        {/* Chat view */}
+        {/* Chat view — requires AI search plan */}
         {view === 'chat' && isActive ? (
-          <AISearchChat />
+          <PlanGate feature="aiSearch" inline>
+            <AISearchChat />
+          </PlanGate>
         ) : (
           <>
             {/* Search Bar */}

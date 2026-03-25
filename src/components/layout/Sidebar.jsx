@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
+import useSubscriptionStore from '../../store/subscriptionStore'
 import {
   LayoutDashboard,
   BookOpen,
@@ -10,7 +11,9 @@ import {
   ShoppingCart,
   Library,
   Settings,
+  CreditCard,
   LogOut,
+  Sparkles,
 } from 'lucide-react'
 
 const navItems = [
@@ -27,7 +30,10 @@ const navItems = [
 
 export default function Sidebar() {
   const { currentFamily, currentMember, logout } = useAuthStore()
+  const { subscription } = useSubscriptionStore()
   const navigate = useNavigate()
+  const isAdmin = currentMember?.role === 'admin'
+  const showUpgrade = !subscription || subscription.plan_tier === 'starter'
 
   const handleLogout = async () => {
     await logout()
@@ -72,6 +78,34 @@ export default function Sidebar() {
             {item.label}
           </NavLink>
         ))}
+
+        {/* Billing link — admin only */}
+        {isAdmin && (
+          <NavLink
+            to="/billing"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-6 py-3 font-body text-sm transition-colors ${
+                isActive
+                  ? 'bg-white/10 border-l-4 border-sienna text-flour pl-5'
+                  : 'text-cream/70 hover:text-cream hover:bg-white/5 border-l-4 border-transparent pl-5'
+              }`
+            }
+          >
+            <CreditCard className="w-5 h-5" />
+            Billing
+          </NavLink>
+        )}
+
+        {/* Upgrade badge */}
+        {showUpgrade && (
+          <NavLink
+            to="/pricing"
+            className="flex items-center gap-2 mx-4 mt-2 px-4 py-2.5 bg-honey/20 text-honey rounded-lg font-body text-sm font-semibold hover:bg-honey/30 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Upgrade Plan
+          </NavLink>
+        )}
       </nav>
 
       {/* User info */}

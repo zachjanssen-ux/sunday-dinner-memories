@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 
 const RECIPE_EXTRACTION_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the following text into valid JSON:
 {
@@ -36,10 +37,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { text } = req.body
+    const { text, familyId, userId } = req.body
 
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'No text provided' })
+    }
+
+    // Check usage limits if familyId provided
+    if (familyId) {
+      const check = await checkUsageLimits(familyId, 'scan')
+      if (!check.allowed) {
+        Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
     }
 
     const client = getOpenRouterClient()
@@ -67,6 +77,11 @@ export default async function handler(req, res) {
       } else {
         throw new Error('Could not parse AI response as JSON')
       }
+    }
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'scan', 0, MODELS.TEXT)
     }
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))

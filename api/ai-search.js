@@ -1,4 +1,5 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
+import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 import { createClient } from '@supabase/supabase-js'
 
 const corsHeaders = {
@@ -19,10 +20,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, familyId } = req.body
+    const { query, familyId, userId } = req.body
 
     if (!query || !familyId) {
       return res.status(400).json({ error: 'Missing query or familyId' })
+    }
+
+    // Check usage limits
+    if (familyId) {
+      const check = await checkUsageLimits(familyId, 'aiSearch')
+      if (!check.allowed) {
+        Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
+        return res.status(403).json({ error: check.error, usageLimited: true })
+      }
     }
 
     // Init Supabase with service role to bypass RLS
@@ -102,6 +112,11 @@ ${recipeSummaries}`,
       } else {
         throw new Error('Could not parse AI response as JSON')
       }
+    }
+
+    // Record usage
+    if (familyId && userId) {
+      await recordUsage(familyId, userId, 'aiSearch', 0, MODELS.TEXT)
     }
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))

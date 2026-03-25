@@ -5,6 +5,7 @@ import useAuthStore from '../store/authStore'
 import useRecipeStore from '../store/recipeStore'
 import useCookbookBuilderStore from '../store/cookbookBuilderStore'
 import Layout from '../components/layout/Layout'
+import PlanGate from '../components/guards/PlanGate'
 import ThemeCard from '../components/cookbooks/ThemeCard'
 import RecipePageEditor from '../components/cookbooks/RecipePageEditor'
 import SectionDividerEditor from '../components/cookbooks/SectionDividerEditor'
@@ -763,19 +764,23 @@ export default function CookbookBuilder() {
   if (!cookbookId) {
     return (
       <Layout>
-        <CreationWizard
-          onComplete={(newId) => {
-            setCreatedId(newId)
-            navigate(`/cookbooks/printable/${newId}`, { replace: true })
-          }}
-        />
+        <PlanGate feature="cookbookBuilder">
+          <CreationWizard
+            onComplete={(newId) => {
+              setCreatedId(newId)
+              navigate(`/cookbooks/printable/${newId}`, { replace: true })
+            }}
+          />
+        </PlanGate>
       </Layout>
     )
   }
 
   return (
     <Layout>
-      <BuilderInterface cookbookId={cookbookId} />
+      <PlanGate feature="cookbookBuilder">
+        <BuilderInterface cookbookId={cookbookId} />
+      </PlanGate>
     </Layout>
   )
 }

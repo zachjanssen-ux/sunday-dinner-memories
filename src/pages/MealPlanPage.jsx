@@ -6,6 +6,7 @@ import useRecipeStore from '../store/recipeStore'
 import useMealPlanStore from '../store/mealPlanStore'
 import useShoppingListStore from '../store/shoppingListStore'
 import Layout from '../components/layout/Layout'
+import PlanGate from '../components/guards/PlanGate'
 import RecipePicker from '../components/mealplan/RecipePicker'
 import MealSlotCell from '../components/mealplan/MealSlotCell'
 import {
@@ -214,6 +215,7 @@ export default function MealPlanPage() {
 
   return (
     <Layout>
+      <PlanGate feature="mealPlan">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -518,6 +520,7 @@ export default function MealPlanPage() {
           </div>
         )}
       </div>
+      </PlanGate>
     </Layout>
   )
 }
