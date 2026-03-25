@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { priceId, familyId, userId } = req.body
+    const { priceId, familyId, userId, promoCode } = req.body
 
     if (!priceId || !familyId || !userId) {
       return res.status(400).json({ error: 'priceId, familyId, and userId are required' })
@@ -28,14 +28,30 @@ export default async function handler(req, res) {
 
     const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://sundaydinnermemories.com'
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?subscription=success`,
       cancel_url: `${origin}/pricing`,
       metadata: { familyId, userId },
       client_reference_id: familyId,
-    })
+    }
+
+    // If user entered a promo code, let Stripe validate it
+    if (promoCode) {
+      // Look up the promotion code in Stripe
+      const promoCodes = await stripe.promotionCodes.list({ code: promoCode, active: true, limit: 1 })
+      if (promoCodes.data.length > 0) {
+        sessionConfig.discounts = [{ promotion_code: promoCodes.data[0].id }]
+      } else {
+        return res.status(400).json({ error: 'Invalid promo code' })
+      }
+    } else {
+      // Allow promo code entry on the Stripe Checkout page too
+      sessionConfig.allow_promotion_codes = true
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
     return res.status(200).json({ sessionId: session.id })

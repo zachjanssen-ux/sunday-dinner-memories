@@ -13,6 +13,7 @@ import {
   Crown,
   Loader2,
   ArrowLeft,
+  Tag,
 } from 'lucide-react'
 
 const TIERS = [
@@ -76,6 +77,8 @@ export default function Pricing() {
   const { user, currentFamily, currentMember } = useAuthStore()
   const { subscription, fetchSubscription } = useSubscriptionStore()
   const [loadingTier, setLoadingTier] = useState(null)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoApplied, setPromoApplied] = useState(false)
 
   useEffect(() => {
     if (currentFamily?.id) {
@@ -102,6 +105,7 @@ export default function Pricing() {
           priceId: tier.priceId,
           familyId: currentFamily.id,
           userId: user.id,
+          promoCode: promoCode.trim() || undefined,
         }),
       })
 
@@ -245,8 +249,45 @@ export default function Pricing() {
           })}
         </div>
 
+        {/* Promo Code */}
+        <div className="max-w-md mx-auto mt-10 bg-flour rounded-xl border border-stone/20 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-honey" />
+            <span className="font-body font-semibold text-sunday-brown text-sm">Have a promo code?</span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={promoCode}
+              onChange={(e) => {
+                setPromoCode(e.target.value.toUpperCase())
+                setPromoApplied(false)
+              }}
+              placeholder="Enter code"
+              className="flex-1 bg-cream border border-stone/30 rounded-lg px-4 py-2.5 font-body text-sunday-brown placeholder:text-stone focus:ring-2 focus:ring-sienna/50 focus:border-sienna text-sm"
+            />
+            {promoCode && (
+              <button
+                onClick={() => {
+                  setPromoApplied(true)
+                  toast.success(`Code "${promoCode}" will be applied at checkout!`)
+                }}
+                className="bg-sienna text-flour rounded-lg px-5 py-2.5 font-body font-semibold text-sm hover:bg-sienna/90 transition-colors"
+              >
+                Apply
+              </button>
+            )}
+          </div>
+          {promoApplied && promoCode && (
+            <p className="mt-2 text-herb font-body text-xs flex items-center gap-1">
+              <Check className="w-3 h-3" />
+              Code "{promoCode}" will be applied at checkout
+            </p>
+          )}
+        </div>
+
         {/* Footer note */}
-        <div className="text-center mt-10 mb-4">
+        <div className="text-center mt-8 mb-4">
           <p className="font-body text-sm text-stone">
             All plans include a 14-day money-back guarantee. Cancel anytime.
           </p>
