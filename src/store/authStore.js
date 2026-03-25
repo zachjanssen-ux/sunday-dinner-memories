@@ -38,37 +38,51 @@ const useAuthStore = create((set, get) => ({
   },
 
   fetchMember: async (userId) => {
-    const { data, error } = await supabase
-      .from('family_members')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
+    try {
+      const { data, error } = await supabase
+        .from('family_members')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle()
 
-    if (error) {
-      console.error('Error fetching member:', error)
-      return
-    }
+      if (error) {
+        console.error('Error fetching member:', error)
+        set({ currentMember: null, currentFamily: null })
+        return
+      }
 
-    set({ currentMember: data })
+      set({ currentMember: data })
 
-    if (data?.family_id) {
-      await get().fetchFamily(data.family_id)
+      if (data?.family_id) {
+        await get().fetchFamily(data.family_id)
+      } else {
+        set({ currentFamily: null })
+      }
+    } catch (err) {
+      console.error('fetchMember exception:', err)
+      set({ currentMember: null, currentFamily: null })
     }
   },
 
   fetchFamily: async (familyId) => {
-    const { data, error } = await supabase
-      .from('families')
-      .select('*')
-      .eq('id', familyId)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('families')
+        .select('*')
+        .eq('id', familyId)
+        .single()
 
-    if (error) {
-      console.error('Error fetching family:', error)
-      return
+      if (error) {
+        console.error('Error fetching family:', error)
+        set({ currentFamily: null })
+        return
+      }
+
+      set({ currentFamily: data })
+    } catch (err) {
+      console.error('fetchFamily exception:', err)
+      set({ currentFamily: null })
     }
-
-    set({ currentFamily: data })
   },
 }))
 
