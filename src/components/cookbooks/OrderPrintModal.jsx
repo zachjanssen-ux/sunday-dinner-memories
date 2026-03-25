@@ -1,11 +1,15 @@
-import { useState } from 'react'
-import { X, Printer, Gift, Truck, CreditCard } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { X, Printer, Gift, Truck, CreditCard, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 
 export default function OrderPrintModal({ cookbook, onClose }) {
   const [coverType, setCoverType] = useState('softcover')
   const [quantity, setQuantity] = useState(1)
   const [isGift, setIsGift] = useState(false)
   const [giftMessage, setGiftMessage] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
   const [address, setAddress] = useState({
     name: '',
     line1: '',
@@ -14,6 +18,106 @@ export default function OrderPrintModal({ cookbook, onClose }) {
     state: '',
     zip: '',
   })
+
+  // Quote state
+  const [quote, setQuote] = useState(null)
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const [quoteError, setQuoteError] = useState(null)
+
+  // Order state
+  const [ordering, setOrdering] = useState(false)
+  const [orderError, setOrderError] = useState(null)
+
+  const pageCount = cookbook?.page_count || 0
+
+  // Fetch quote when cover type, quantity, or address changes (debounced)
+  const fetchQuote = useCallback(async () => {
+    if (!pageCount || pageCount < 2) {
+      setQuoteError('Cookbook must have at least 2 pages to print.')
+      return
+    }
+
+    setQuoteLoading(true)
+    setQuoteError(null)
+
+    try {
+      const resp = await fetch('/api/get-print-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageCount,
+          coverType,
+          quantity,
+          shippingAddress: address.city
+            ? { name: address.name, line1: address.line1, city: address.city, state: address.state, zip: address.zip }
+            : undefined,
+        }),
+      })
+
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.error || 'Failed to get quote')
+
+      setQuote(data)
+    } catch (err) {
+      console.error('Quote error:', err)
+      setQuoteError(err.message)
+      setQuote(null)
+    } finally {
+      setQuoteLoading(false)
+    }
+  }, [pageCount, coverType, quantity, address.city, address.state, address.zip])
+
+  useEffect(() => {
+    const timer = setTimeout(fetchQuote, 600)
+    return () => clearTimeout(timer)
+  }, [fetchQuote])
+
+  const formatUSD = (amount) => {
+    if (amount == null) return '--'
+    return `$${parseFloat(amount).toFixed(2)}`
+  }
+
+  const isAddressValid =
+    address.name.trim() && address.line1.trim() && address.city.trim() && address.state.trim() && address.zip.trim()
+
+  const canOrder = quote && isAddressValid && !quoteLoading && !ordering
+
+  const handleOrder = async () => {
+    if (!canOrder) return
+    setOrdering(true)
+    setOrderError(null)
+
+    try {
+      // Create Stripe checkout session
+      const resp = await fetch('/api/create-print-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cookbookId: cookbook.id,
+          cookbookTitle: cookbook.title,
+          coverType,
+          quantity,
+          totalAmount: quote.total,
+          shippingAddress: address,
+          isGift,
+          giftMessage: isGift ? giftMessage : '',
+          contactEmail,
+        }),
+      })
+
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.error || 'Failed to create checkout')
+
+      // Redirect to Stripe
+      const stripe = await stripePromise
+      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId })
+      if (error) throw new Error(error.message)
+    } catch (err) {
+      console.error('Order error:', err)
+      setOrderError(err.message)
+      setOrdering(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-cast-iron/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -32,9 +136,7 @@ export default function OrderPrintModal({ cookbook, onClose }) {
         <div className="p-6 space-y-6">
           {/* Cover type */}
           <div>
-            <label className="block text-sm font-body font-semibold text-sunday-brown mb-2">
-              Cover Type
-            </label>
+            <label className="block text-sm font-body font-semibold text-sunday-brown mb-2">Cover Type</label>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { value: 'softcover', label: 'Softcover', desc: 'Lightweight & flexible' },
@@ -58,9 +160,7 @@ export default function OrderPrintModal({ cookbook, onClose }) {
 
           {/* Quantity */}
           <div>
-            <label className="block text-sm font-body font-semibold text-sunday-brown mb-1">
-              Quantity
-            </label>
+            <label className="block text-sm font-body font-semibold text-sunday-brown mb-1">Quantity</label>
             <input
               type="number"
               min={1}
@@ -75,36 +175,67 @@ export default function OrderPrintModal({ cookbook, onClose }) {
           {/* Price breakdown */}
           <div className="bg-cream rounded-lg p-4 border border-stone/20">
             <div className="text-sm font-body font-semibold text-cast-iron mb-2">Price Breakdown</div>
-            <div className="space-y-1 text-sm font-body text-sunday-brown">
-              <div className="flex justify-between">
-                <span>Base price ({coverType})</span>
-                <span className="text-stone italic">Price will be calculated</span>
+
+            {quoteLoading && (
+              <div className="flex items-center gap-2 text-sm font-body text-stone py-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Calculating price...
               </div>
-              <div className="flex justify-between">
-                <span>Quantity: {quantity}</span>
-                <span className="text-stone italic">--</span>
+            )}
+
+            {quoteError && !quoteLoading && (
+              <div className="flex items-center gap-2 text-sm font-body text-red-600 py-2">
+                <AlertCircle className="w-4 h-4" />
+                {quoteError}
               </div>
-              <div className="flex justify-between">
-                <span>Shipping</span>
-                <span className="text-stone italic">--</span>
+            )}
+
+            {quote && !quoteLoading && (
+              <div className="space-y-1 text-sm font-body text-sunday-brown">
+                <div className="flex justify-between">
+                  <span>
+                    Printing ({coverType}, {pageCount} pages x {quantity})
+                  </span>
+                  <span>{formatUSD(quote.luluBaseCost)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Platform fee</span>
+                  <span>{formatUSD(quote.markupAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Estimated shipping</span>
+                  <span>{quote.shippingCost > 0 ? formatUSD(quote.shippingCost) : 'Calculated at checkout'}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-stone/20 font-semibold text-cast-iron">
+                  <span>Total</span>
+                  <span>{formatUSD(quote.total)}</span>
+                </div>
               </div>
-              <div className="flex justify-between pt-2 border-t border-stone/20 font-semibold">
-                <span>Total</span>
-                <span className="text-stone italic">Pending API setup</span>
-              </div>
-            </div>
-            <p className="text-xs text-stone mt-3">
-              Print pricing requires Lulu API configuration. Contact your admin to set up the LULU_API_KEY.
-            </p>
+            )}
+
+            {!quote && !quoteLoading && !quoteError && (
+              <p className="text-xs text-stone">Enter details above to see pricing.</p>
+            )}
+          </div>
+
+          {/* Contact email */}
+          <div>
+            <label className="block text-sm font-body font-semibold text-sunday-brown mb-1">Contact Email</label>
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full bg-flour border border-stone/30 rounded-lg px-4 py-2.5 font-body text-sm
+                text-sunday-brown focus:ring-2 focus:ring-sienna/50 focus:outline-none placeholder:text-stone/50"
+            />
           </div>
 
           {/* Shipping address */}
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Truck className="w-4 h-4 text-stone" />
-              <label className="text-sm font-body font-semibold text-sunday-brown">
-                Shipping Address
-              </label>
+              <label className="text-sm font-body font-semibold text-sunday-brown">Shipping Address</label>
             </div>
             <div className="space-y-3">
               <input
@@ -183,6 +314,14 @@ export default function OrderPrintModal({ cookbook, onClose }) {
               />
             )}
           </div>
+
+          {/* Order error */}
+          {orderError && (
+            <div className="flex items-center gap-2 text-sm font-body text-red-600 bg-red-50 rounded-lg p-3">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {orderError}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -195,12 +334,22 @@ export default function OrderPrintModal({ cookbook, onClose }) {
             Cancel
           </button>
           <button
-            disabled
+            onClick={handleOrder}
+            disabled={!canOrder}
             className="px-5 py-2 rounded-lg text-sm font-body font-semibold bg-sienna text-flour
-              shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              shadow-md hover:bg-sienna/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <CreditCard className="w-4 h-4" />
-            Order Print (API Setup Required)
+            {ordering ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CreditCard className="w-4 h-4" />
+                {quote ? `Pay ${formatUSD(quote.total)}` : 'Order Print'}
+              </>
+            )}
           </button>
         </div>
       </div>
