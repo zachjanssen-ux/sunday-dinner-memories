@@ -103,11 +103,11 @@ export default function PublicRecipe() {
       .select(`
         *,
         cooks ( id, name, bio, photo_url ),
-        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
+        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
       `)
       .eq('public_slug', slug)
       .eq('is_public', true)
-      .single()
+      .maybeSingle()
 
     if (error || !data) {
       setLoading(false)

@@ -64,19 +64,26 @@ export default function RecipeDetail() {
 
   const fetchRecipe = async () => {
     setLoading(true)
+    // Use simpler query without nested ingredient join (causes 406 errors)
     const { data, error } = await supabase
       .from('recipes')
       .select(`
         *,
         cooks ( id, name, bio, photo_url ),
         recipe_tags ( id, tag_id, tags ( id, name ) ),
-        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
+        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
       `)
       .eq('id', id)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching recipe:', error)
+      setLoading(false)
+      return
+    }
+
+    if (!data) {
+      console.error('Recipe not found')
       setLoading(false)
       return
     }

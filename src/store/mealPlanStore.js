@@ -41,7 +41,7 @@ const useMealPlanStore = create((set, get) => ({
           *,
           recipes (
             id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
-            recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
+            recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
           )
         `)
         .eq('meal_plan_id', planId)
@@ -123,7 +123,7 @@ const useMealPlanStore = create((set, get) => ({
         *,
         recipes (
           id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
-          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
+          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
         )
       `)
       .eq('meal_plan_id', item.meal_plan_id)

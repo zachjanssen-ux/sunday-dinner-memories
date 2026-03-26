@@ -203,9 +203,19 @@ const useRecipeStore = create((set, get) => ({
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    // Get the current session token for auth
-    const { data: sessionData } = await supabase.auth.getSession()
-    const accessToken = sessionData?.session?.access_token || supabaseKey
+    // Get access token from localStorage directly — bypass supabase.auth.getSession()
+    // which can hang due to the lock mechanism
+    let accessToken = supabaseKey
+    try {
+      const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
+      const stored = localStorage.getItem(storageKey)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        accessToken = parsed.access_token || supabaseKey
+      }
+    } catch {
+      // Fall back to anon key
+    }
 
     const rpcBody = {
       recipe_data: {
