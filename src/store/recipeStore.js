@@ -198,8 +198,16 @@ const useRecipeStore = create((set, get) => ({
   },
 
   addRecipe: async (recipe, ingredients, instructions, tagIds) => {
-    // Everything in one atomic server-side call — no RLS issues
-    const { data: recipeId, error } = await supabase.rpc('create_recipe', {
+    // Bypass the Supabase JS client entirely — use direct fetch to avoid
+    // auth token lock issues that cause the client to hang
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    // Get the current session token for auth
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token || supabaseKey
+
+    const rpcBody = {
       recipe_data: {
         family_id: recipe.family_id,
         contributed_by: recipe.contributed_by,
@@ -219,8 +227,8 @@ const useRecipeStore = create((set, get) => ({
         source_url: recipe.source_url || null,
         original_image_url: recipe.original_image_url || null,
         scan_status: recipe.scan_status || null,
-        // Ingredients and tags are now handled inside the RPC function
         ingredients: (ingredients || []).map((ing) => ({
+          name: ing.name || '',
           ingredient_id: ing.ingredient_id || null,
           quantity: ing.quantity || '',
           quantity_numeric: ing.quantity_numeric || null,
@@ -229,11 +237,24 @@ const useRecipeStore = create((set, get) => ({
         })),
         tag_ids: tagIds || [],
       },
+    }
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_recipe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(rpcBody),
     })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}))
+      throw new Error(errData.message || errData.error || `Save failed (${response.status})`)
+    }
 
-    const newRecipeId = recipeId
+    const newRecipeId = await response.json()
 
     // Add to local state
     const { recipes } = get()
