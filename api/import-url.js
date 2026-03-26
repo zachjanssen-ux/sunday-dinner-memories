@@ -1,6 +1,21 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
 import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 
+const INGREDIENT_PARSE_PROMPT = `Parse these recipe ingredients into structured JSON. For each ingredient, extract the quantity (number), unit (cup, tbsp, tsp, oz, lb, g, etc.), and the ingredient name. Return a JSON array.
+
+Rules:
+- quantity should be a string like "1", "1/2", "1 1/2", "2.5"
+- unit should be normalized: cups→cup, tablespoons→tbsp, teaspoons→tsp, ounces→oz, pounds→lb
+- name should be JUST the ingredient name, no quantities or units
+- notes should capture preparation info like "chopped", "room temperature", "divided"
+- If an ingredient says "for garnish" or "for topping" or "optional", put that in notes
+- If there's no clear quantity (like "salt to taste"), set quantity to "" and unit to ""
+
+Example input: ["2 cups (260g) chopped pecans or walnuts (1 cup for cake, 1 cup for garnish)*", "1/2 cup (8 Tbsp; 113g) unsalted butter, softened"]
+Example output: [{"name":"pecans or walnuts","quantity":"2","unit":"cup","notes":"chopped, 1 cup for cake, 1 cup for garnish"},{"name":"unsalted butter","quantity":"1/2","unit":"cup","notes":"softened"}]
+
+Respond ONLY with the JSON array, no markdown fences.`
+
 const RECIPE_EXTRACTION_PROMPT = `You are a recipe extraction assistant. Extract the recipe from the following text into valid JSON:
 {
   "title": "string",
@@ -217,16 +232,44 @@ export default async function handler(req, res) {
 
     const html = await response.text()
 
-    // Tier 1: Try JSON-LD (no AI call needed, so record as scan but no cost)
+    // Tier 1: Try JSON-LD for recipe structure
     const jsonLdRecipe = extractJsonLdRecipe(html)
     if (jsonLdRecipe) {
+      // Use AI to parse the raw ingredient strings into structured qty/unit/name
+      // This handles complex cases like "2 cups (260g) chopped pecans (1 cup for cake, 1 cup for garnish)"
+      try {
+        const rawIngredients = jsonLdRecipe.ingredients.map((i) => i.name).filter(Boolean)
+        if (rawIngredients.length > 0) {
+          const client = getOpenRouterClient()
+          const aiResponse = await client.chat.completions.create({
+            model: MODELS.TEXT,
+            max_tokens: 2048,
+            messages: [
+              { role: 'system', content: INGREDIENT_PARSE_PROMPT },
+              { role: 'user', content: JSON.stringify(rawIngredients) },
+            ],
+          })
+
+          const aiText = aiResponse.choices[0]?.message?.content?.trim()
+          if (aiText) {
+            const parsed = JSON.parse(aiText)
+            if (Array.isArray(parsed)) {
+              jsonLdRecipe.ingredients = parsed
+            }
+          }
+        }
+      } catch (parseErr) {
+        console.error('AI ingredient parse failed, using raw:', parseErr.message)
+        // Fall back to raw ingredient names — still usable
+      }
+
       if (familyId && userId) {
-        await recordUsage(familyId, userId, 'scan', 0, 'json-ld')
+        await recordUsage(familyId, userId, 'scan', 0.001, 'ingredient-parse')
       }
       Object.keys(corsHeaders).forEach((key) => res.setHeader(key, corsHeaders[key]))
       return res.status(200).json({
         ...jsonLdRecipe,
-        _source: 'json-ld',
+        _source: 'json-ld+ai',
       })
     }
 
