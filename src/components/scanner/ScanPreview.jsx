@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, AlertCircle } from 'lucide-react'
 
 const loadingMessages = [
@@ -20,7 +20,21 @@ export default function ScanPreview({ imageData, mimeType, apiEndpoint, apiBody,
     return () => clearInterval(interval)
   }, [])
 
+  // Use refs to avoid re-triggering the effect when callback/body references change
+  const onResultRef = useRef(onResult)
+  const onErrorRef = useRef(onError)
+  const apiBodyRef = useRef(apiBody)
+  useEffect(() => { onResultRef.current = onResult }, [onResult])
+  useEffect(() => { onErrorRef.current = onError }, [onError])
+  useEffect(() => { apiBodyRef.current = apiBody }, [apiBody])
+
+  // Track whether we've already kicked off a scan to prevent double-fires
+  const hasFired = useRef(false)
+
   useEffect(() => {
+    if (hasFired.current) return
+    hasFired.current = true
+
     let cancelled = false
 
     async function scan() {
@@ -28,7 +42,7 @@ export default function ScanPreview({ imageData, mimeType, apiEndpoint, apiBody,
       setError(null)
 
       try {
-        const body = apiBody || { image: imageData, mimeType: mimeType || 'image/jpeg' }
+        const body = apiBodyRef.current || { image: imageData, mimeType: mimeType || 'image/jpeg' }
         const endpoint = apiEndpoint || '/api/scan-recipe'
 
         const response = await fetch(endpoint, {
@@ -46,20 +60,20 @@ export default function ScanPreview({ imageData, mimeType, apiEndpoint, apiBody,
 
         if (!cancelled) {
           setLoading(false)
-          onResult(data)
+          onResultRef.current(data)
         }
       } catch (err) {
         if (!cancelled) {
           setLoading(false)
           setError(err.message)
-          if (onError) onError(err.message)
+          if (onErrorRef.current) onErrorRef.current(err.message)
         }
       }
     }
 
     scan()
     return () => { cancelled = true }
-  }, [imageData, mimeType, apiEndpoint, apiBody, onResult, onError])
+  }, [imageData, mimeType, apiEndpoint])
 
   if (loading) {
     return (

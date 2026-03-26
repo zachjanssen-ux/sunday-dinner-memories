@@ -115,6 +115,7 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
       const ingredientRows = ingredients
         .filter((ing) => ing.name.trim())
         .map((ing) => ({
+          name: ing.name.trim(),
           quantity: ing.quantity || '',
           unit: ing.unit || '',
           notes: ing.notes || '',
