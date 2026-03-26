@@ -198,8 +198,7 @@ const useRecipeStore = create((set, get) => ({
   },
 
   addRecipe: async (recipe, ingredients, instructions, tagIds) => {
-    // Use server-side RPC to create recipe (bypasses RLS SELECT-after-INSERT hang)
-    // Single JSONB param so PostgREST can always match the function
+    // Everything in one atomic server-side call — no RLS issues
     const { data: recipeId, error } = await supabase.rpc('create_recipe', {
       recipe_data: {
         family_id: recipe.family_id,
@@ -220,6 +219,15 @@ const useRecipeStore = create((set, get) => ({
         source_url: recipe.source_url || null,
         original_image_url: recipe.original_image_url || null,
         scan_status: recipe.scan_status || null,
+        // Ingredients and tags are now handled inside the RPC function
+        ingredients: (ingredients || []).map((ing) => ({
+          ingredient_id: ing.ingredient_id || null,
+          quantity: ing.quantity || '',
+          quantity_numeric: ing.quantity_numeric || null,
+          unit: ing.unit || '',
+          notes: ing.notes || '',
+        })),
+        tag_ids: tagIds || [],
       },
     })
 
@@ -227,38 +235,7 @@ const useRecipeStore = create((set, get) => ({
 
     const newRecipeId = recipeId
 
-    // Insert ingredients into recipe_ingredients table
-    if (ingredients?.length > 0) {
-      const ingredientRows = ingredients.map((ing, idx) => ({
-        recipe_id: newRecipeId,
-        ingredient_id: ing.ingredient_id || null,
-        quantity: ing.quantity || '',
-        quantity_numeric: ing.quantity_numeric || null,
-        unit: ing.unit || '',
-        notes: ing.notes || '',
-        sort_order: idx,
-      }))
-      const { error: ingErr } = await supabase
-        .from('recipe_ingredients')
-        .insert(ingredientRows)
-      if (ingErr) console.error('Error inserting ingredients:', ingErr)
-    }
-
-    // Instructions are stored as JSONB on the recipe itself (no separate table)
-
-    // Insert tag links
-    if (tagIds?.length > 0) {
-      const tagRows = tagIds.map((tagId) => ({
-        recipe_id: newRecipeId,
-        tag_id: tagId,
-      }))
-      const { error: tagErr } = await supabase
-        .from('recipe_tags')
-        .insert(tagRows)
-      if (tagErr) console.error('Error inserting tags:', tagErr)
-    }
-
-    // Add to local state with the data we have
+    // Add to local state
     const { recipes } = get()
     const enriched = {
       id: newRecipeId,
