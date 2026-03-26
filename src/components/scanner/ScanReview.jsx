@@ -80,6 +80,12 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
       return
     }
 
+    // Guard: make sure we have auth context
+    if (!currentFamily?.id || !currentMember?.id) {
+      setError('Not logged in or no family set. Please refresh and try again.')
+      return
+    }
+
     setSaving(true)
     setError(null)
 
@@ -91,6 +97,8 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
           step: idx + 1,
           text: text.trim(),
         }))
+
+      const sourceMap = { url: 'url_import', photo: 'photo_import', text: 'text_import', pdf: 'pdf_import', docx: 'docx_import' }
 
       const recipeData = {
         title: title.trim(),
@@ -106,10 +114,10 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
         servings: servings ? parseInt(servings, 10) : null,
         notes: notes.trim() || null,
         instructions: instructionsJson.length > 0 ? instructionsJson : null,
-        source: source,
+        source: sourceMap[source] || source,
         scan_status: 'reviewed',
-        family_id: currentFamily?.id,
-        contributed_by: currentMember?.id,
+        family_id: currentFamily.id,
+        contributed_by: currentMember.id,
       }
 
       const ingredientRows = ingredients
@@ -123,16 +131,21 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
           ingredient_id: null,
         }))
 
-      if (existingRecipeId) {
-        await updateRecipe(existingRecipeId, recipeData, ingredientRows, null, [])
-      } else {
-        await addRecipe(recipeData, ingredientRows, null, [])
-      }
+      // Add a 15-second timeout so save never spins forever
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Save timed out after 15 seconds')), 15000)
+      )
 
-      navigate('/recipes')
+      const savePromise = existingRecipeId
+        ? updateRecipe(existingRecipeId, recipeData, ingredientRows, null, [])
+        : addRecipe(recipeData, ingredientRows, null, [])
+
+      await Promise.race([savePromise, timeoutPromise])
+
+      navigate('/dashboard')
     } catch (err) {
       console.error('Save error:', err)
-      setError('Could not save the recipe. Please try again.')
+      setError(err.message || 'Could not save the recipe. Please try again.')
     } finally {
       setSaving(false)
     }
