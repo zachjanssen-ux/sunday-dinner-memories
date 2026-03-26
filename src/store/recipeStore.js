@@ -108,8 +108,7 @@ const useRecipeStore = create((set, get) => ({
           *,
           cooks ( id, name, bio, photo_url ),
           recipe_tags ( id, tag_id, tags ( id, name ) ),
-          recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes, sort_order ),
-          recipe_instructions ( id, step_number, instruction_text, sort_order )
+          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
         `)
         .eq('family_id', familyId)
         .order('created_at', { ascending: false })
@@ -210,13 +209,13 @@ const useRecipeStore = create((set, get) => ({
 
     if (error) throw error
 
-    // Insert ingredients
+    // Insert ingredients into recipe_ingredients table
     if (ingredients?.length > 0) {
       const ingredientRows = ingredients.map((ing, idx) => ({
         recipe_id: newRecipe.id,
-        ingredient_name: ing.ingredient_name,
-        quantity_text: ing.quantity_text || '',
-        quantity_numeric: ing.quantity_numeric,
+        ingredient_id: ing.ingredient_id || null,
+        quantity: ing.quantity || ing.quantity_text || '',
+        quantity_numeric: ing.quantity_numeric || null,
         unit: ing.unit || '',
         notes: ing.notes || '',
         sort_order: idx,
@@ -227,19 +226,7 @@ const useRecipeStore = create((set, get) => ({
       if (ingErr) console.error('Error inserting ingredients:', ingErr)
     }
 
-    // Insert instructions
-    if (instructions?.length > 0) {
-      const instructionRows = instructions.map((inst, idx) => ({
-        recipe_id: newRecipe.id,
-        step_number: idx + 1,
-        instruction_text: inst.instruction_text,
-        sort_order: idx,
-      }))
-      const { error: instErr } = await supabase
-        .from('recipe_instructions')
-        .insert(instructionRows)
-      if (instErr) console.error('Error inserting instructions:', instErr)
-    }
+    // Instructions are stored as JSONB on the recipe itself (no separate table)
 
     // Insert tag links
     if (tagIds?.length > 0) {
@@ -264,7 +251,6 @@ const useRecipeStore = create((set, get) => ({
       favorite_count: 0,
       recipe_tags: [],
       recipe_ingredients: [],
-      recipe_instructions: [],
     }
     set({ recipes: [enriched, ...recipes] })
 
@@ -285,9 +271,9 @@ const useRecipeStore = create((set, get) => ({
       if (ingredients.length > 0) {
         const ingredientRows = ingredients.map((ing, idx) => ({
           recipe_id: id,
-          ingredient_name: ing.ingredient_name,
-          quantity_text: ing.quantity_text || '',
-          quantity_numeric: ing.quantity_numeric,
+          ingredient_id: ing.ingredient_id || null,
+          quantity: ing.quantity || ing.quantity_text || '',
+          quantity_numeric: ing.quantity_numeric || null,
           unit: ing.unit || '',
           notes: ing.notes || '',
           sort_order: idx,
@@ -296,19 +282,7 @@ const useRecipeStore = create((set, get) => ({
       }
     }
 
-    // Replace instructions
-    if (instructions !== undefined) {
-      await supabase.from('recipe_instructions').delete().eq('recipe_id', id)
-      if (instructions.length > 0) {
-        const instructionRows = instructions.map((inst, idx) => ({
-          recipe_id: id,
-          step_number: idx + 1,
-          instruction_text: inst.instruction_text,
-          sort_order: idx,
-        }))
-        await supabase.from('recipe_instructions').insert(instructionRows)
-      }
-    }
+    // Instructions are updated via the recipe's instructions JSONB field (in `updates`)
 
     // Replace tags
     if (tagIds !== undefined) {
