@@ -279,15 +279,15 @@ function RecipePDFPage({ page, recipes, styles }) {
   const ingredients = (recipe.recipe_ingredients || []).sort(
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   )
-  const instructions = (recipe.recipe_instructions || []).sort(
-    (a, b) => (a.sort_order ?? a.step_number ?? 0) - (b.sort_order ?? b.step_number ?? 0)
+  const instructions = (recipe.instructions || []).sort(
+    (a, b) => (a.step ?? 0) - (b.step ?? 0)
   )
 
   const metaBadges = []
   if (recipe.category) metaBadges.push(formatLabel(recipe.category))
   if (recipe.cuisine) metaBadges.push(formatLabel(recipe.cuisine))
-  if (recipe.prep_time_minutes) metaBadges.push(`Prep: ${recipe.prep_time_minutes} min`)
-  if (recipe.cook_time_minutes) metaBadges.push(`Cook: ${recipe.cook_time_minutes} min`)
+  if (recipe.prep_time_min) metaBadges.push(`Prep: ${recipe.prep_time_min} min`)
+  if (recipe.cook_time_min) metaBadges.push(`Cook: ${recipe.cook_time_min} min`)
   if (recipe.servings) metaBadges.push(`Serves ${recipe.servings}`)
 
   return (
@@ -316,9 +316,9 @@ function RecipePDFPage({ page, recipes, styles }) {
               {ingredients.slice(0, Math.ceil(ingredients.length / 2)).map((ing, i) => (
                 <View key={i} style={styles.ingredientRow}>
                   <Text>
-                    {ing.quantity_text && <Text style={styles.ingredientQty}>{ing.quantity_text} </Text>}
+                    {ing.quantity && <Text style={styles.ingredientQty}>{ing.quantity} </Text>}
                     {ing.unit && <Text style={styles.ingredientQty}>{ing.unit} </Text>}
-                    <Text style={styles.ingredientName}>{ing.ingredient_name}</Text>
+                    <Text style={styles.ingredientName}>{ing.ingredients?.name || ''}</Text>
                     {ing.notes && <Text style={styles.ingredientNotes}> ({ing.notes})</Text>}
                   </Text>
                 </View>
@@ -328,9 +328,9 @@ function RecipePDFPage({ page, recipes, styles }) {
               {ingredients.slice(Math.ceil(ingredients.length / 2)).map((ing, i) => (
                 <View key={i} style={styles.ingredientRow}>
                   <Text>
-                    {ing.quantity_text && <Text style={styles.ingredientQty}>{ing.quantity_text} </Text>}
+                    {ing.quantity && <Text style={styles.ingredientQty}>{ing.quantity} </Text>}
                     {ing.unit && <Text style={styles.ingredientQty}>{ing.unit} </Text>}
-                    <Text style={styles.ingredientName}>{ing.ingredient_name}</Text>
+                    <Text style={styles.ingredientName}>{ing.ingredients?.name || ''}</Text>
                     {ing.notes && <Text style={styles.ingredientNotes}> ({ing.notes})</Text>}
                   </Text>
                 </View>
@@ -346,7 +346,7 @@ function RecipePDFPage({ page, recipes, styles }) {
           {instructions.map((inst, idx) => (
             <View key={idx} style={styles.instructionRow} wrap={false}>
               <Text style={styles.stepNumber}>{idx + 1}</Text>
-              <Text style={styles.stepText}>{inst.instruction_text}</Text>
+              <Text style={styles.stepText}>{inst.text}</Text>
             </View>
           ))}
         </View>
@@ -391,7 +391,7 @@ function IngredientIndexPage({ pages, recipes, styles }) {
     const recipe = recipes.find((r) => r.id === page.content?.recipe_id)
     if (!recipe) continue
     for (const ing of recipe.recipe_ingredients || []) {
-      const name = ing.ingredient_name?.toLowerCase().trim()
+      const name = (ing.ingredients?.name || '').toLowerCase().trim()
       if (!name) continue
       if (!ingredientMap[name]) ingredientMap[name] = []
       if (!ingredientMap[name].includes(recipe.title)) {

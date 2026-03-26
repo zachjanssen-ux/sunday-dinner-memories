@@ -107,12 +107,12 @@ const useSubscriptionStore = create((set, get) => ({
     const scanPct =
       limits.scansPerMonth === Infinity
         ? 0
-        : Math.min(100, Math.round(((usage.scans_used || 0) / limits.scansPerMonth) * 100))
+        : Math.min(100, Math.round(((usage.scan_count || 0) / limits.scansPerMonth) * 100))
 
     const creditPct =
       !limits.apiCreditCap
         ? 0
-        : Math.min(100, Math.round(((usage.api_credits_used || 0) / limits.apiCreditCap) * 100))
+        : Math.min(100, Math.round(((usage.api_credit_spent || 0) / limits.apiCreditCap) * 100))
 
     return { scans: scanPct, credits: creditPct }
   },

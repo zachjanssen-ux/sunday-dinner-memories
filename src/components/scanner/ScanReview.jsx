@@ -84,6 +84,14 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
     setError(null)
 
     try {
+      // Build instructions as JSONB array (stored on recipe, not a separate table)
+      const instructionsJson = instructions
+        .filter((text) => text.trim())
+        .map((text, idx) => ({
+          step: idx + 1,
+          text: text.trim(),
+        }))
+
       const recipeData = {
         title: title.trim(),
         description: description.trim() || null,
@@ -97,31 +105,27 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
         cook_time_min: cookTime ? parseInt(cookTime, 10) : null,
         servings: servings ? parseInt(servings, 10) : null,
         notes: notes.trim() || null,
+        instructions: instructionsJson.length > 0 ? instructionsJson : null,
         source: source,
         scan_status: 'reviewed',
         family_id: currentFamily?.id,
-        added_by: currentMember?.user_id,
+        contributed_by: currentMember?.id,
       }
 
       const ingredientRows = ingredients
         .filter((ing) => ing.name.trim())
         .map((ing) => ({
-          ingredient_name: ing.name.trim(),
-          quantity_text: ing.quantity || '',
+          quantity: ing.quantity || '',
           unit: ing.unit || '',
           notes: ing.notes || '',
-        }))
-
-      const instructionRows = instructions
-        .filter((text) => text.trim())
-        .map((text) => ({
-          instruction_text: text.trim(),
+          // ingredient_id will be null for now -- ingredient lookup can happen server-side later
+          ingredient_id: null,
         }))
 
       if (existingRecipeId) {
-        await updateRecipe(existingRecipeId, recipeData, ingredientRows, instructionRows, [])
+        await updateRecipe(existingRecipeId, recipeData, ingredientRows, null, [])
       } else {
-        await addRecipe(recipeData, ingredientRows, instructionRows, [])
+        await addRecipe(recipeData, ingredientRows, null, [])
       }
 
       navigate('/recipes')

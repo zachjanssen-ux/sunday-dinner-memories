@@ -41,8 +41,8 @@ const useShoppingListStore = create((set, get) => ({
         .from('shopping_list_items')
         .select('*')
         .eq('shopping_list_id', listId)
-        .order('category', { ascending: true })
-        .order('item_name', { ascending: true })
+        .order('aisle_category', { ascending: true })
+        .order('name', { ascending: true })
 
       if (itemsError) throw itemsError
 
@@ -114,7 +114,7 @@ const useShoppingListStore = create((set, get) => ({
           *,
           recipes (
             id, title,
-            recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes )
+            recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, ingredients ( id, name ) )
           )
         `)
         .eq('meal_plan_id', planId)
@@ -131,17 +131,17 @@ const useShoppingListStore = create((set, get) => ({
         const ingredients = recipe.recipe_ingredients || []
 
         for (const ing of ingredients) {
-          const name = (ing.ingredient_name || '').trim().toLowerCase()
-          if (!name) continue
+          const ingName = (ing.ingredients?.name || '').trim().toLowerCase()
+          if (!ingName) continue
 
           const unit = canonicalUnit(ing.unit)
           const qty = ing.quantity_numeric != null ? ing.quantity_numeric * multiplier : null
 
-          const key = `${name}__${unit}`
+          const key = `${ingName}__${unit}`
 
           if (!ingredientMap[key]) {
             ingredientMap[key] = {
-              name: ing.ingredient_name?.trim() || name,
+              name: ing.ingredients?.name?.trim() || ingName,
               quantity: 0,
               unit: unit,
               recipeSources: [],
@@ -235,25 +235,35 @@ const useShoppingListStore = create((set, get) => ({
       }
 
       // 6. Create shopping list
-      const { data: list, error: listErr } = await supabase
+      const { error: listErr } = await supabase
         .from('shopping_lists')
         .insert({
           family_id: familyId,
           meal_plan_id: planId,
           title: `Shopping List — ${planTitle || 'Meal Plan'}`,
         })
-        .select()
-        .single()
 
       if (listErr) throw listErr
+
+      // Fetch the newly created list
+      const { data: newLists } = await supabase
+        .from('shopping_lists')
+        .select('*')
+        .eq('family_id', familyId)
+        .eq('meal_plan_id', planId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const list = newLists?.[0]
+      if (!list) throw new Error('Failed to retrieve created shopping list')
 
       // 7. Create shopping list items
       const listItems = normalizedItems.map((item) => ({
         shopping_list_id: list.id,
-        item_name: item.name,
+        name: item.name,
         quantity: item.hasQuantity ? item.quantity : null,
         unit: item.unit || null,
-        category: categorized[item.name] || categorized[item.name.toLowerCase()] || 'other',
+        aisle_category: categorized[item.name] || categorized[item.name.toLowerCase()] || 'other',
         recipe_sources: item.recipeSources,
         is_checked: false,
       }))
@@ -270,8 +280,8 @@ const useShoppingListStore = create((set, get) => ({
         .from('shopping_list_items')
         .select('*')
         .eq('shopping_list_id', list.id)
-        .order('category')
-        .order('item_name')
+        .order('aisle_category')
+        .order('name')
 
       const { lists } = get()
       set({
@@ -316,17 +326,23 @@ const useShoppingListStore = create((set, get) => ({
   },
 
   addManualItem: async (item) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('shopping_list_items')
       .insert(item)
-      .select()
-      .single()
 
     if (error) throw error
 
-    const { items } = get()
-    set({ items: [...items, data] })
-    return data
+    // Re-fetch all items for this list
+    const listId = item.shopping_list_id
+    const { data: allItems } = await supabase
+      .from('shopping_list_items')
+      .select('*')
+      .eq('shopping_list_id', listId)
+      .order('aisle_category')
+      .order('name')
+
+    set({ items: allItems || [] })
+    return allItems?.[allItems.length - 1]
   },
 
   removeItem: async (itemId) => {

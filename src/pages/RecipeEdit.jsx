@@ -43,8 +43,7 @@ export default function RecipeEdit() {
         *,
         cooks ( id, name, bio, photo_url ),
         recipe_tags ( id, tag_id, tags ( id, name ) ),
-        recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes, sort_order ),
-        recipe_instructions ( id, step_number, instruction_text, sort_order )
+        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
       `)
       .eq('id', id)
       .single()

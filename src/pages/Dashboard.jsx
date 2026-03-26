@@ -90,7 +90,7 @@ function UsageCard() {
           <div className="flex items-center justify-between mb-1">
             <span className="font-body text-xs text-sunday-brown">AI Scans</span>
             <span className="font-body text-xs font-semibold text-cast-iron">
-              {usage.scans_used || 0} / {limits.scansPerMonth}
+              {usage.scan_count || 0} / {limits.scansPerMonth}
             </span>
           </div>
           <div className={`h-2 rounded-full ${scanTrackColor}`}>
@@ -120,7 +120,7 @@ function UsageCard() {
           <div className="flex items-center justify-between mb-1">
             <span className="font-body text-xs text-sunday-brown">API Credits</span>
             <span className="font-body text-xs font-semibold text-cast-iron">
-              ${(usage.api_credits_used || 0).toFixed(2)} / ${limits.apiCreditCap.toFixed(2)}
+              ${(usage.api_credit_spent || 0).toFixed(2)} / ${limits.apiCreditCap.toFixed(2)}
             </span>
           </div>
           <div className={`h-2 rounded-full ${creditTrackColor}`}>

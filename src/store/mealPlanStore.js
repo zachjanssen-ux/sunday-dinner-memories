@@ -40,12 +40,12 @@ const useMealPlanStore = create((set, get) => ({
         .select(`
           *,
           recipes (
-            id, title, category, cuisine, image_url, prep_time, cook_time,
-            recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes, sort_order )
+            id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
+            recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
           )
         `)
         .eq('meal_plan_id', planId)
-        .order('plan_date', { ascending: true })
+        .order('date', { ascending: true })
 
       if (itemsError) throw itemsError
 
@@ -57,16 +57,23 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   createPlan: async (data) => {
-    const { data: plan, error } = await supabase
+    const { error } = await supabase
       .from('meal_plans')
       .insert(data)
-      .select()
-      .single()
 
     if (error) throw error
 
-    const { plans } = get()
-    set({ plans: [plan, ...plans], currentPlan: plan, planItems: [] })
+    // Re-fetch plans to get the new one with server-generated fields
+    const { data: plans, error: fetchErr } = await supabase
+      .from('meal_plans')
+      .select('*')
+      .eq('family_id', data.family_id)
+      .order('start_date', { ascending: false })
+
+    if (fetchErr) throw fetchErr
+
+    const plan = plans?.[0] || { ...data, id: null }
+    set({ plans: plans || [], currentPlan: plan, planItems: [] })
     return plan
   },
 
@@ -103,23 +110,27 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   addItem: async (item) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('meal_plan_items')
       .insert(item)
-      .select(`
-        *,
-        recipes (
-          id, title, category, cuisine, image_url, prep_time, cook_time,
-          recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes, sort_order )
-        )
-      `)
-      .single()
 
     if (error) throw error
 
-    const { planItems } = get()
-    set({ planItems: [...planItems, data] })
-    return data
+    // Re-fetch all items for this plan to get the new one with joins
+    const { data: items } = await supabase
+      .from('meal_plan_items')
+      .select(`
+        *,
+        recipes (
+          id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
+          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
+        )
+      `)
+      .eq('meal_plan_id', item.meal_plan_id)
+      .order('date', { ascending: true })
+
+    set({ planItems: items || [] })
+    return items?.[items.length - 1]
   },
 
   removeItem: async (itemId) => {
@@ -165,18 +176,28 @@ const useMealPlanStore = create((set, get) => ({
     if (!plan) throw new Error('Plan not found')
 
     // Create new plan
-    const { data: newPlan, error: planErr } = await supabase
+    const dupFamilyId = familyId || plan.family_id
+    const { error: planErr } = await supabase
       .from('meal_plans')
       .insert({
-        family_id: familyId || plan.family_id,
+        family_id: dupFamilyId,
         title: `${plan.title} (Copy)`,
         start_date: plan.start_date,
         end_date: plan.end_date,
       })
-      .select()
-      .single()
 
     if (planErr) throw planErr
+
+    // Fetch the newly created plan
+    const { data: newPlans } = await supabase
+      .from('meal_plans')
+      .select('*')
+      .eq('family_id', dupFamilyId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const newPlan = newPlans?.[0]
+    if (!newPlan) throw new Error('Failed to retrieve duplicated plan')
 
     // Fetch items from source
     let items = planItems
@@ -193,7 +214,7 @@ const useMealPlanStore = create((set, get) => ({
       const newItems = items.map((item) => ({
         meal_plan_id: newPlan.id,
         recipe_id: item.recipe_id,
-        plan_date: item.plan_date,
+        date: item.date,
         meal_slot: item.meal_slot,
         servings_multiplier: item.servings_multiplier || 1,
         notes: item.notes || '',

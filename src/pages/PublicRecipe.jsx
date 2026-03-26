@@ -57,7 +57,7 @@ function OGMeta({ recipe }) {
     }
 
     const desc = recipe.description || `A family recipe from Sunday Dinner Memories`
-    const img = recipe.photo_url || ''
+    const img = recipe.original_image_url || ''
 
     setMeta('og:title', recipe.title)
     setMeta('og:description', desc)
@@ -103,8 +103,7 @@ export default function PublicRecipe() {
       .select(`
         *,
         cooks ( id, name, bio, photo_url ),
-        recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes, sort_order ),
-        recipe_instructions ( id, step_number, instruction_text, sort_order )
+        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
       `)
       .eq('public_slug', slug)
       .eq('is_public', true)
@@ -165,7 +164,7 @@ export default function PublicRecipe() {
       .insert({
         recipe_id: recipe.id,
         family_id: currentMember.family_id,
-        saved_by: user.id,
+        saved_by: currentMember.id,
       })
 
     if (saveError) {
@@ -174,7 +173,9 @@ export default function PublicRecipe() {
       return
     }
 
-    // Clone recipe into user's family
+    // Clone recipe into user's family using RPC to avoid INSERT → SELECT hang
+    const instructionsJson = recipe.instructions || null
+
     const cloneData = {
       family_id: currentMember.family_id,
       title: recipe.title,
@@ -182,22 +183,21 @@ export default function PublicRecipe() {
       category: recipe.category,
       cuisine: recipe.cuisine,
       difficulty: recipe.difficulty,
-      prep_time_minutes: recipe.prep_time_minutes,
-      cook_time_minutes: recipe.cook_time_minutes,
+      prep_time_min: recipe.prep_time_min,
+      cook_time_min: recipe.cook_time_min,
       servings: recipe.servings,
       notes: recipe.notes,
-      photo_url: recipe.photo_url,
+      original_image_url: recipe.original_image_url,
       dietary_labels: recipe.dietary_labels,
+      instructions: instructionsJson,
       source: 'saved',
       source_url: `${window.location.origin}/r/${slug}`,
       contributed_by: currentMember.id,
     }
 
-    const { data: newRecipe, error: cloneError } = await supabase
-      .from('recipes')
-      .insert(cloneData)
-      .select()
-      .single()
+    const { data: newRecipeId, error: cloneError } = await supabase.rpc('create_recipe', {
+      recipe_data: cloneData,
+    })
 
     if (cloneError) {
       console.error('Error cloning recipe:', cloneError)
@@ -208,9 +208,9 @@ export default function PublicRecipe() {
     // Clone ingredients
     if (recipe.recipe_ingredients?.length > 0) {
       const ingredientRows = recipe.recipe_ingredients.map((ing) => ({
-        recipe_id: newRecipe.id,
-        ingredient_name: ing.ingredient_name,
-        quantity_text: ing.quantity_text || '',
+        recipe_id: newRecipeId,
+        ingredient_id: ing.ingredient_id || null,
+        quantity: ing.quantity || '',
         quantity_numeric: ing.quantity_numeric,
         unit: ing.unit || '',
         notes: ing.notes || '',
@@ -219,16 +219,7 @@ export default function PublicRecipe() {
       await supabase.from('recipe_ingredients').insert(ingredientRows)
     }
 
-    // Clone instructions
-    if (recipe.recipe_instructions?.length > 0) {
-      const instructionRows = recipe.recipe_instructions.map((inst) => ({
-        recipe_id: newRecipe.id,
-        step_number: inst.step_number,
-        instruction_text: inst.instruction_text,
-        sort_order: inst.sort_order,
-      }))
-      await supabase.from('recipe_instructions').insert(instructionRows)
-    }
+    // Instructions are already cloned as JSONB on the recipe itself (no separate table)
 
     setSaving(false)
     setAlreadySaved(true)
@@ -240,8 +231,8 @@ export default function PublicRecipe() {
   const ingredients = (recipe?.recipe_ingredients || [])
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
-  const instructions = (recipe?.recipe_instructions || [])
-    .sort((a, b) => (a.sort_order ?? a.step_number ?? 0) - (b.sort_order ?? b.step_number ?? 0))
+  const instructions = (recipe?.instructions || [])
+    .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
 
   const blogContent = recipe?.blog_content
 
@@ -299,11 +290,11 @@ export default function PublicRecipe() {
       </header>
 
       {/* Hero photo */}
-      {recipe.photo_url && (
+      {recipe.original_image_url && (
         <div className="max-w-4xl mx-auto px-4 mt-8">
           <div className="rounded-2xl overflow-hidden shadow-lg max-h-[500px]">
             <img
-              src={recipe.photo_url}
+              src={recipe.original_image_url}
               alt={recipe.title}
               className="w-full h-full object-cover"
             />
@@ -366,23 +357,23 @@ export default function PublicRecipe() {
         )}
 
         {/* Time & servings bar */}
-        {(recipe.prep_time_minutes || recipe.cook_time_minutes || recipe.servings) && (
+        {(recipe.prep_time_min || recipe.cook_time_min || recipe.servings) && (
           <div className="flex flex-wrap items-center gap-6 py-4 px-6 bg-linen rounded-xl border border-stone/10 mb-8">
-            {recipe.prep_time_minutes && (
+            {recipe.prep_time_min && (
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-sienna" />
                 <div>
                   <p className="text-xs font-body text-stone uppercase tracking-wide">Prep</p>
-                  <p className="font-body font-semibold text-sunday-brown">{recipe.prep_time_minutes} min</p>
+                  <p className="font-body font-semibold text-sunday-brown">{recipe.prep_time_min} min</p>
                 </div>
               </div>
             )}
-            {recipe.cook_time_minutes && (
+            {recipe.cook_time_min && (
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-sienna" />
                 <div>
                   <p className="text-xs font-body text-stone uppercase tracking-wide">Cook</p>
-                  <p className="font-body font-semibold text-sunday-brown">{recipe.cook_time_minutes} min</p>
+                  <p className="font-body font-semibold text-sunday-brown">{recipe.cook_time_min} min</p>
                 </div>
               </div>
             )}
@@ -395,12 +386,12 @@ export default function PublicRecipe() {
                 </div>
               </div>
             )}
-            {recipe.prep_time_minutes && recipe.cook_time_minutes && (
+            {recipe.prep_time_min && recipe.cook_time_min && (
               <div className="flex items-center gap-2 ml-auto">
                 <div>
                   <p className="text-xs font-body text-stone uppercase tracking-wide">Total</p>
                   <p className="font-body font-semibold text-sunday-brown">
-                    {recipe.prep_time_minutes + recipe.cook_time_minutes} min
+                    {recipe.prep_time_min + recipe.cook_time_min} min
                   </p>
                 </div>
               </div>
@@ -477,11 +468,11 @@ export default function PublicRecipe() {
                   className="flex items-baseline gap-2 py-2 border-b border-stone/10"
                 >
                   <span className="font-body text-sunday-brown text-lg">
-                    {ing.quantity_text && (
-                      <span className="font-semibold">{ing.quantity_text} </span>
+                    {ing.quantity && (
+                      <span className="font-semibold">{ing.quantity} </span>
                     )}
                     {ing.unit && <span>{ing.unit} </span>}
-                    {ing.ingredient_name}
+                    {ing.ingredients?.name || ''}
                   </span>
                   {ing.notes && (
                     <span className="text-sm text-stone font-body">({ing.notes})</span>
@@ -498,13 +489,13 @@ export default function PublicRecipe() {
             <h2 className="text-2xl font-display text-cast-iron mb-5">Instructions</h2>
             <ol className="space-y-5">
               {instructions.map((inst, idx) => (
-                <li key={inst.id || idx} className="flex gap-4">
+                <li key={idx} className="flex gap-4">
                   <span className="w-9 h-9 rounded-full bg-sienna text-flour flex items-center justify-center
                     text-sm font-body font-semibold shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
                   <p className="font-body text-sunday-brown text-lg pt-1 flex-1 leading-relaxed">
-                    {inst.instruction_text}
+                    {inst.text}
                   </p>
                 </li>
               ))}

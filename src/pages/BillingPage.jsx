@@ -229,13 +229,13 @@ export default function BillingPage() {
           <div className="bg-flour rounded-xl border border-stone/20 p-6 mb-6 shadow-sm">
             <h3 className="text-lg font-display text-cast-iron mb-4">Usage This Period</h3>
             <ProgressBar
-              value={usage.scans_used || 0}
+              value={usage.scan_count || 0}
               max={limits.scansPerMonth}
               label="AI Scans"
             />
             {limits.apiCreditCap && (
               <ProgressBar
-                value={usage.api_credits_used || 0}
+                value={usage.api_credit_spent || 0}
                 max={limits.apiCreditCap}
                 label="API Credits"
                 showDollar

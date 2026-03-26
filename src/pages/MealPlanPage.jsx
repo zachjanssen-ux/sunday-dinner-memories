@@ -88,7 +88,7 @@ export default function MealPlanPage() {
   const itemsByDateSlot = useMemo(() => {
     const map = {}
     for (const item of planItems) {
-      const key = `${item.plan_date}__${item.meal_slot}`
+      const key = `${item.date}__${item.meal_slot}`
       if (!map[key]) map[key] = []
       map[key].push(item)
     }
@@ -144,7 +144,7 @@ export default function MealPlanPage() {
       await addItem({
         meal_plan_id: currentPlan.id,
         recipe_id: recipe.id,
-        plan_date: pickerTarget.date,
+        date: pickerTarget.date,
         meal_slot: pickerTarget.slot,
         servings_multiplier: 1,
         notes: '',

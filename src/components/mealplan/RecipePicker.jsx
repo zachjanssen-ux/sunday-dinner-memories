@@ -69,9 +69,9 @@ export default function RecipePicker({ recipes, onSelect, onClose }) {
                 onClick={() => onSelect(recipe)}
                 className="w-full text-left p-3 rounded-lg hover:bg-linen transition-colors flex items-center gap-3 group"
               >
-                {recipe.image_url ? (
+                {recipe.original_image_url ? (
                   <img
-                    src={recipe.image_url}
+                    src={recipe.original_image_url}
                     alt=""
                     className="w-10 h-10 rounded-md object-cover flex-shrink-0"
                   />

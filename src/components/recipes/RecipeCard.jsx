@@ -45,9 +45,9 @@ export default function RecipeCard({ recipe }) {
     >
       {/* Photo */}
       <div className="relative h-48 bg-stone/10 overflow-hidden">
-        {recipe.photo_url ? (
+        {recipe.original_image_url ? (
           <img
-            src={recipe.photo_url}
+            src={recipe.original_image_url}
             alt={recipe.title}
             className="w-full h-full object-cover"
           />
@@ -126,13 +126,13 @@ export default function RecipeCard({ recipe }) {
 
         {/* Time & servings */}
         <div className="flex items-center gap-4 text-sm text-sunday-brown/60 font-body">
-          {(recipe.prep_time_minutes || recipe.cook_time_minutes) && (
+          {(recipe.prep_time_min || recipe.cook_time_min) && (
             <div className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
               <span>
-                {recipe.prep_time_minutes && recipe.cook_time_minutes
-                  ? `${recipe.prep_time_minutes + recipe.cook_time_minutes} min`
-                  : `${recipe.prep_time_minutes || recipe.cook_time_minutes} min`}
+                {recipe.prep_time_min && recipe.cook_time_min
+                  ? `${recipe.prep_time_min + recipe.cook_time_min} min`
+                  : `${recipe.prep_time_min || recipe.cook_time_min} min`}
               </span>
             </div>
           )}

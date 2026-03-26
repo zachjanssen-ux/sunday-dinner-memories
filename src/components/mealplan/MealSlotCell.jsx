@@ -91,9 +91,9 @@ export default function MealSlotCell({ items, onAdd, onRemove, onUpdate, readonl
                 className={`flex items-start gap-1.5 ${!readonly ? 'cursor-pointer' : ''}`}
                 onClick={() => !readonly && startEdit(item)}
               >
-                {item.recipes?.image_url ? (
+                {item.recipes?.original_image_url ? (
                   <img
-                    src={item.recipes.image_url}
+                    src={item.recipes.original_image_url}
                     alt=""
                     className="w-6 h-6 rounded object-cover flex-shrink-0 mt-0.5"
                   />

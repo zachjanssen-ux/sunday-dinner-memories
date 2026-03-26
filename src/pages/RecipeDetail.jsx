@@ -70,8 +70,7 @@ export default function RecipeDetail() {
         *,
         cooks ( id, name, bio, photo_url ),
         recipe_tags ( id, tag_id, tags ( id, name ) ),
-        recipe_ingredients ( id, ingredient_name, quantity_text, quantity_numeric, unit, notes, sort_order ),
-        recipe_instructions ( id, step_number, instruction_text, sort_order )
+        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients ( id, name ) )
       `)
       .eq('id', id)
       .single()
@@ -158,8 +157,8 @@ export default function RecipeDetail() {
   const ingredients = (recipe?.recipe_ingredients || [])
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
-  const instructions = (recipe?.recipe_instructions || [])
-    .sort((a, b) => (a.sort_order ?? a.step_number ?? 0) - (b.sort_order ?? b.step_number ?? 0))
+  const instructions = (recipe?.instructions || [])
+    .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
 
   const tags = (recipe?.recipe_tags || []).map((rt) => rt.tags).filter(Boolean)
 
@@ -208,10 +207,10 @@ export default function RecipeDetail() {
         </Link>
 
         {/* Hero photo */}
-        {recipe.photo_url ? (
+        {recipe.original_image_url ? (
           <div className="rounded-xl overflow-hidden mb-8 max-h-96">
             <img
-              src={recipe.photo_url}
+              src={recipe.original_image_url}
               alt={recipe.title}
               className="w-full h-full object-cover"
             />
@@ -276,16 +275,16 @@ export default function RecipeDetail() {
 
         {/* Time, servings, actions */}
         <div className="flex flex-wrap items-center gap-4 mb-8 pb-8 border-b border-stone/20">
-          {recipe.prep_time_minutes && (
+          {recipe.prep_time_min && (
             <div className="flex items-center gap-1.5 text-sunday-brown font-body">
               <Clock className="w-4 h-4 text-stone" />
-              <span className="text-sm">Prep: {recipe.prep_time_minutes} min</span>
+              <span className="text-sm">Prep: {recipe.prep_time_min} min</span>
             </div>
           )}
-          {recipe.cook_time_minutes && (
+          {recipe.cook_time_min && (
             <div className="flex items-center gap-1.5 text-sunday-brown font-body">
               <Clock className="w-4 h-4 text-stone" />
-              <span className="text-sm">Cook: {recipe.cook_time_minutes} min</span>
+              <span className="text-sm">Cook: {recipe.cook_time_min} min</span>
             </div>
           )}
           {recipe.servings && (
@@ -458,11 +457,11 @@ export default function RecipeDetail() {
                       {scaledQty !== null && (
                         <span className="font-semibold">{formatQuantity(scaledQty)} </span>
                       )}
-                      {!scaledQty && ing.quantity_text && (
-                        <span className="font-semibold">{ing.quantity_text} </span>
+                      {!scaledQty && ing.quantity && (
+                        <span className="font-semibold">{ing.quantity} </span>
                       )}
                       {ing.unit && <span>{ing.unit} </span>}
-                      {ing.ingredient_name}
+                      {ing.ingredients?.name || ''}
                     </span>
                     {ing.notes && (
                       <span className="text-sm text-stone font-body">({ing.notes})</span>
@@ -480,13 +479,13 @@ export default function RecipeDetail() {
             <h2 className="text-2xl font-display text-cast-iron mb-4">Instructions</h2>
             <ol className="space-y-4">
               {instructions.map((inst, idx) => (
-                <li key={inst.id || idx} className="flex gap-4">
+                <li key={idx} className="flex gap-4">
                   <span className="w-8 h-8 rounded-full bg-sienna text-flour flex items-center justify-center
                     text-sm font-body font-semibold shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
                   <p className="font-body text-sunday-brown pt-1 flex-1">
-                    {inst.instruction_text}
+                    {inst.text}
                   </p>
                 </li>
               ))}

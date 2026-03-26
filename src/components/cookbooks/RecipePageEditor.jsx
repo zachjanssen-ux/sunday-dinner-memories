@@ -57,10 +57,10 @@ export default function RecipePageEditor({ recipes, selectedRecipeId, onSelect }
                 </div>
               )}
               <div className="flex items-center gap-3 mt-1.5 text-[11px] text-stone/70 font-body">
-                {recipe.prep_time_minutes && (
+                {recipe.prep_time_min && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {recipe.prep_time_minutes}m prep
+                    {recipe.prep_time_min}m prep
                   </span>
                 )}
                 {recipe.servings && (

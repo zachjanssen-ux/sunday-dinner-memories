@@ -12,14 +12,22 @@ const useCookbookBuilderStore = create((set, get) => ({
   createCookbook: async (data) => {
     set({ saving: true })
     try {
-      const { data: cookbook, error } = await supabase
+      const { error } = await supabase
         .from('printable_cookbooks')
         .insert(data)
-        .select()
-        .single()
 
       if (error) throw error
-      set({ currentCookbook: cookbook, pages: [], saving: false })
+
+      // Fetch the newly created cookbook
+      const { data: newCookbooks } = await supabase
+        .from('printable_cookbooks')
+        .select('*')
+        .eq('family_id', data.family_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const cookbook = newCookbooks?.[0]
+      set({ currentCookbook: cookbook || null, pages: [], saving: false })
       return cookbook
     } catch (err) {
       console.error('Error creating printable cookbook:', err)
@@ -32,15 +40,21 @@ const useCookbookBuilderStore = create((set, get) => ({
   updateCookbook: async (id, updates) => {
     set({ saving: true })
     try {
-      const { data: cookbook, error } = await supabase
+      const { error } = await supabase
         .from('printable_cookbooks')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single()
 
       if (error) throw error
-      set({ currentCookbook: cookbook, saving: false })
+
+      // Fetch updated cookbook
+      const { data: cookbook } = await supabase
+        .from('printable_cookbooks')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      set({ currentCookbook: cookbook || null, saving: false })
       return cookbook
     } catch (err) {
       console.error('Error updating printable cookbook:', err)
@@ -56,15 +70,22 @@ const useCookbookBuilderStore = create((set, get) => ({
       const { pages } = get()
       const sortOrder = pages.length
 
-      const { data: newPage, error } = await supabase
+      const { error } = await supabase
         .from('printable_cookbook_pages')
         .insert({ ...page, sort_order: sortOrder })
-        .select()
-        .single()
 
       if (error) throw error
-      set({ pages: [...pages, newPage], saving: false })
-      return newPage
+
+      // Re-fetch all pages for this cookbook
+      const cookbookId = page.cookbook_id
+      const { data: allPages } = await supabase
+        .from('printable_cookbook_pages')
+        .select('*')
+        .eq('cookbook_id', cookbookId)
+        .order('sort_order', { ascending: true })
+
+      set({ pages: allPages || [], saving: false })
+      return allPages?.[allPages.length - 1]
     } catch (err) {
       console.error('Error adding page:', err)
       set({ saving: false })
@@ -176,21 +197,19 @@ const useCookbookBuilderStore = create((set, get) => ({
   updatePage: async (pageId, updates) => {
     set({ saving: true })
     try {
-      const { data: updatedPage, error } = await supabase
+      const { error } = await supabase
         .from('printable_cookbook_pages')
         .update(updates)
         .eq('id', pageId)
-        .select()
-        .single()
 
       if (error) throw error
 
       const { pages } = get()
       set({
-        pages: pages.map((p) => (p.id === pageId ? updatedPage : p)),
+        pages: pages.map((p) => (p.id === pageId ? { ...p, ...updates } : p)),
         saving: false,
       })
-      return updatedPage
+      return { ...pages.find((p) => p.id === pageId), ...updates }
     } catch (err) {
       console.error('Error updating page:', err)
       set({ saving: false })

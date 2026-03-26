@@ -216,8 +216,8 @@ function formatLabel(str) {
 }
 
 export default function RecipePDFTemplate({ recipe, ingredients, cookName }) {
-  const instructions = (recipe?.recipe_instructions || [])
-    .sort((a, b) => (a.sort_order ?? a.step_number ?? 0) - (b.sort_order ?? b.step_number ?? 0))
+  const instructions = (recipe?.instructions || [])
+    .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
 
   const sortedIngredients = (ingredients || [])
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -231,13 +231,13 @@ export default function RecipePDFTemplate({ recipe, ingredients, cookName }) {
   if (recipe?.category) metaBadges.push(formatLabel(recipe.category))
   if (recipe?.cuisine) metaBadges.push(formatLabel(recipe.cuisine))
   if (recipe?.difficulty) metaBadges.push(formatLabel(recipe.difficulty))
-  if (recipe?.prep_time_minutes) metaBadges.push(`Prep: ${recipe.prep_time_minutes} min`)
-  if (recipe?.cook_time_minutes) metaBadges.push(`Cook: ${recipe.cook_time_minutes} min`)
+  if (recipe?.prep_time_min) metaBadges.push(`Prep: ${recipe.prep_time_min} min`)
+  if (recipe?.cook_time_min) metaBadges.push(`Cook: ${recipe.cook_time_min} min`)
   if (recipe?.servings) metaBadges.push(`Serves ${recipe.servings}`)
 
   const renderIngredient = (ing) => {
     const parts = []
-    if (ing.quantity_text) parts.push(ing.quantity_text)
+    if (ing.quantity) parts.push(ing.quantity)
     if (ing.unit) parts.push(ing.unit)
     const qtyText = parts.length > 0 ? parts.join(' ') + ' ' : ''
 
@@ -245,7 +245,7 @@ export default function RecipePDFTemplate({ recipe, ingredients, cookName }) {
       <View key={ing.id} style={styles.ingredientItem}>
         <Text>
           {qtyText && <Text style={styles.ingredientQty}>{qtyText}</Text>}
-          <Text style={styles.ingredientName}>{ing.ingredient_name}</Text>
+          <Text style={styles.ingredientName}>{ing.ingredients?.name || ''}</Text>
           {ing.notes && <Text style={styles.ingredientNotes}> ({ing.notes})</Text>}
         </Text>
       </View>
@@ -302,9 +302,9 @@ export default function RecipePDFTemplate({ recipe, ingredients, cookName }) {
           <View>
             <Text style={styles.sectionHeading}>Instructions</Text>
             {instructions.map((inst, idx) => (
-              <View key={inst.id || idx} style={styles.instructionItem} wrap={false}>
+              <View key={idx} style={styles.instructionItem} wrap={false}>
                 <Text style={styles.stepNumber}>{idx + 1}</Text>
-                <Text style={styles.stepText}>{inst.instruction_text}</Text>
+                <Text style={styles.stepText}>{inst.text}</Text>
               </View>
             ))}
           </View>

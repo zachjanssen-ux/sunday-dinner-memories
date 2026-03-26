@@ -64,7 +64,7 @@ export default function PrintView({ list, items, grouped, categoryLabels, onClos
                       <span className="inline-block w-4 h-4 border-2 border-gray-400 rounded-sm flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <span className="text-sm text-gray-900" style={{ fontFamily: 'Georgia, serif' }}>
-                          {item.item_name}
+                          {item.name}
                           {item.quantity != null && (
                             <span className="text-gray-500 ml-1">
                               — {formatQuantity(item.quantity)}

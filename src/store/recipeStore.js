@@ -232,7 +232,7 @@ const useRecipeStore = create((set, get) => ({
       const ingredientRows = ingredients.map((ing, idx) => ({
         recipe_id: newRecipeId,
         ingredient_id: ing.ingredient_id || null,
-        quantity: ing.quantity || ing.quantity_text || '',
+        quantity: ing.quantity || '',
         quantity_numeric: ing.quantity_numeric || null,
         unit: ing.unit || '',
         notes: ing.notes || '',
@@ -283,13 +283,13 @@ const useRecipeStore = create((set, get) => ({
     if (error) throw error
 
     // Replace ingredients
-    if (ingredients !== undefined) {
+    if (ingredients !== undefined && ingredients !== null) {
       await supabase.from('recipe_ingredients').delete().eq('recipe_id', id)
       if (ingredients.length > 0) {
         const ingredientRows = ingredients.map((ing, idx) => ({
           recipe_id: id,
           ingredient_id: ing.ingredient_id || null,
-          quantity: ing.quantity || ing.quantity_text || '',
+          quantity: ing.quantity || '',
           quantity_numeric: ing.quantity_numeric || null,
           unit: ing.unit || '',
           notes: ing.notes || '',
@@ -361,39 +361,58 @@ const useRecipeStore = create((set, get) => ({
   },
 
   addCook: async (cook) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('cooks')
       .insert(cook)
-      .select()
-      .single()
     if (error) throw error
-    const { cooks } = get()
-    set({ cooks: [...cooks, data].sort((a, b) => a.name.localeCompare(b.name)) })
-    return data
+
+    // Re-fetch cooks for this family
+    const { data: allCooks } = await supabase
+      .from('cooks')
+      .select('*')
+      .eq('family_id', cook.family_id)
+      .order('name')
+
+    set({ cooks: allCooks || [] })
+    // Return the newly added cook (last one with this name)
+    return (allCooks || []).find((c) => c.name === cook.name) || cook
   },
 
   addTag: async (tag) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('tags')
       .insert(tag)
-      .select()
-      .single()
     if (error) throw error
-    const { tags } = get()
-    set({ tags: [...tags, data].sort((a, b) => a.name.localeCompare(b.name)) })
-    return data
+
+    // Re-fetch tags for this family
+    const { data: allTags } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('family_id', tag.family_id)
+      .order('name')
+
+    set({ tags: allTags || [] })
+    return (allTags || []).find((t) => t.name === tag.name) || tag
   },
 
   addCookbook: async (cookbook) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('cookbooks')
       .insert(cookbook)
-      .select()
-      .single()
     if (error) throw error
-    const { cookbooks } = get()
-    set({ cookbooks: [data, ...cookbooks] })
-    return data
+
+    // Re-fetch cookbooks for this family
+    const { data: allCookbooks } = await supabase
+      .from('cookbooks')
+      .select(`
+        *,
+        cookbook_recipes ( id, recipe_id, sort_order )
+      `)
+      .eq('family_id', cookbook.family_id)
+      .order('created_at', { ascending: false })
+
+    set({ cookbooks: allCookbooks || [] })
+    return (allCookbooks || [])[0]
   },
 
   addRecipeToCookbook: async (cookbookId, recipeId) => {

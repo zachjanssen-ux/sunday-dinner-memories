@@ -121,13 +121,13 @@ export default function UsageCard() {
       {limits && usage && (
         <div className="mb-4">
           <ProgressBar
-            value={usage.scans_used || 0}
+            value={usage.scan_count || 0}
             max={limits.scansPerMonth}
             label="AI Scans"
           />
           {limits.apiCreditCap && (
             <ProgressBar
-              value={usage.api_credits_used || 0}
+              value={usage.api_credit_spent || 0}
               max={limits.apiCreditCap}
               label="API Credits"
               showDollar

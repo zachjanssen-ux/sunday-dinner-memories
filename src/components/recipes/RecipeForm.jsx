@@ -264,8 +264,8 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
   const [cuisine, setCuisine] = useState(recipe?.cuisine || '')
   const [difficulty, setDifficulty] = useState(recipe?.difficulty || 'easy')
   const [dietaryLabels, setDietaryLabels] = useState(recipe?.dietary_labels || [])
-  const [prepTime, setPrepTime] = useState(recipe?.prep_time_minutes || '')
-  const [cookTime, setCookTime] = useState(recipe?.cook_time_minutes || '')
+  const [prepTime, setPrepTime] = useState(recipe?.prep_time_min || '')
+  const [cookTime, setCookTime] = useState(recipe?.cook_time_min || '')
   const [servings, setServings] = useState(recipe?.servings || '')
   const [notes, setNotes] = useState(recipe?.notes || '')
   const [tagIds, setTagIds] = useState(
@@ -277,27 +277,29 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
       ? recipe.recipe_ingredients
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
           .map((ing) => ({
-            ingredient_name: ing.ingredient_name || '',
-            quantity_text: ing.quantity_text || '',
+            ingredient_name: ing.ingredients?.name || '',
+            ingredient_id: ing.ingredient_id || null,
+            quantity: ing.quantity || '',
             unit: ing.unit || '',
             notes: ing.notes || '',
           }))
-      : [{ ingredient_name: '', quantity_text: '', unit: '', notes: '' }]
+      : [{ ingredient_name: '', ingredient_id: null, quantity: '', unit: '', notes: '' }]
   )
 
+  // Instructions are stored as JSONB on the recipe: [{step: 1, text: "..."}]
   const [instructions, setInstructions] = useState(
-    recipe?.recipe_instructions?.length > 0
-      ? recipe.recipe_instructions
-          .sort((a, b) => (a.sort_order ?? a.step_number ?? 0) - (b.sort_order ?? b.step_number ?? 0))
-          .map((inst) => ({ instruction_text: inst.instruction_text || '' }))
-      : [{ instruction_text: '' }]
+    recipe?.instructions?.length > 0
+      ? recipe.instructions
+          .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+          .map((inst) => ({ text: inst.text || '' }))
+      : [{ text: '' }]
   )
 
   // Drag state for ingredients
   const [dragIdx, setDragIdx] = useState(null)
 
   const addIngredient = () => {
-    setIngredients([...ingredients, { ingredient_name: '', quantity_text: '', unit: '', notes: '' }])
+    setIngredients([...ingredients, { ingredient_name: '', ingredient_id: null, quantity: '', unit: '', notes: '' }])
   }
 
   const removeIngredient = (idx) => {
@@ -312,7 +314,7 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
   }
 
   const addInstruction = () => {
-    setInstructions([...instructions, { instruction_text: '' }])
+    setInstructions([...instructions, { text: '' }])
   }
 
   const removeInstruction = (idx) => {
@@ -323,7 +325,7 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
   const updateInstruction = (idx, value) => {
     setInstructions(
       instructions.map((inst, i) =>
-        i === idx ? { ...inst, instruction_text: value } : inst
+        i === idx ? { ...inst, text: value } : inst
       )
     )
   }
@@ -359,6 +361,14 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
 
     setSaving(true)
     try {
+      // Build instructions JSONB array
+      const instructionsJson = instructions
+        .filter((inst) => inst.text.trim())
+        .map((inst, idx) => ({
+          step: idx + 1,
+          text: inst.text.trim(),
+        }))
+
       const recipeData = {
         title: title.trim(),
         description: description.trim(),
@@ -367,10 +377,11 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
         cuisine: cuisine || null,
         difficulty: difficulty || 'easy',
         dietary_labels: dietaryLabels,
-        prep_time_minutes: prepTime ? parseInt(prepTime, 10) : null,
-        cook_time_minutes: cookTime ? parseInt(cookTime, 10) : null,
+        prep_time_min: prepTime ? parseInt(prepTime, 10) : null,
+        cook_time_min: cookTime ? parseInt(cookTime, 10) : null,
         servings: servings ? parseInt(servings, 10) : null,
         notes: notes.trim(),
+        instructions: instructionsJson.length > 0 ? instructionsJson : null,
         family_id: currentFamily.id,
         contributed_by: currentMember.id,
         source: recipe?.source || 'manual',
@@ -379,18 +390,15 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
       const parsedIngredients = ingredients
         .filter((ing) => ing.ingredient_name.trim())
         .map((ing) => ({
-          ...ing,
-          ingredient_name: ing.ingredient_name.trim(),
-          quantity_numeric: parseQuantity(ing.quantity_text),
+          ingredient_id: ing.ingredient_id || null,
+          quantity: ing.quantity || '',
+          quantity_numeric: parseQuantity(ing.quantity),
+          unit: ing.unit || '',
+          notes: ing.notes || '',
         }))
 
-      const parsedInstructions = instructions
-        .filter((inst) => inst.instruction_text.trim())
-        .map((inst) => ({
-          instruction_text: inst.instruction_text.trim(),
-        }))
-
-      await onSave(recipeData, parsedIngredients, parsedInstructions, tagIds)
+      // Instructions are passed as part of recipeData.instructions (JSONB on recipes table)
+      await onSave(recipeData, parsedIngredients, null, tagIds)
     } catch (err) {
       console.error('Error saving recipe:', err)
       setError(err.message || 'Failed to save recipe. Try again.')
@@ -634,8 +642,8 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
                 <GripVertical className="w-4 h-4 text-stone/40 cursor-grab shrink-0" />
                 <input
                   type="text"
-                  value={ing.quantity_text}
-                  onChange={(e) => updateIngredient(idx, 'quantity_text', e.target.value)}
+                  value={ing.quantity}
+                  onChange={(e) => updateIngredient(idx, 'quantity', e.target.value)}
                   placeholder="1 1/2"
                   className="w-20 bg-flour border border-stone/30 rounded-lg px-3 py-2.5 text-sm font-body text-sunday-brown
                     focus:ring-2 focus:ring-sienna/50 focus:outline-none placeholder:text-stone/50"
@@ -702,7 +710,7 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
                   {idx + 1}.
                 </span>
                 <textarea
-                  value={inst.instruction_text}
+                  value={inst.text}
                   onChange={(e) => updateInstruction(idx, e.target.value)}
                   placeholder={`Step ${idx + 1}...`}
                   rows={2}

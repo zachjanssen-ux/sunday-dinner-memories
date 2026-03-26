@@ -56,7 +56,6 @@ export default function FeedbackModal({ onClose }) {
         rating,
         feature: feature || null,
         message: message.trim() || null,
-        user_agent: navigator.userAgent,
       })
 
       if (error) throw error

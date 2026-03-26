@@ -99,7 +99,7 @@ export default function ShoppingListPage() {
   const grouped = useMemo(() => {
     const groups = {}
     for (const item of items) {
-      const cat = item.category || 'other'
+      const cat = item.aisle_category || 'other'
       if (!groups[cat]) groups[cat] = []
       groups[cat].push(item)
     }
@@ -133,12 +133,13 @@ export default function ShoppingListPage() {
     try {
       await addManualItem({
         shopping_list_id: currentList.id,
-        item_name: newItemName.trim(),
+        name: newItemName.trim(),
         quantity: newItemQty ? parseFloat(newItemQty) : null,
         unit: newItemUnit || null,
-        category: category || 'other',
+        aisle_category: category || 'other',
         recipe_sources: [],
         is_checked: false,
+        is_manual: true,
       })
       setNewItemName('')
       setNewItemQty('')
@@ -338,7 +339,7 @@ export default function ShoppingListPage() {
                                     : 'text-cast-iron'
                                 }`}
                               >
-                                {item.item_name}
+                                {item.name}
                               </p>
                               {item.recipe_sources && item.recipe_sources.length > 0 && (
                                 <p className="text-xs text-stone font-body truncate">

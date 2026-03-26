@@ -153,8 +153,8 @@ function RecipePage({ page, recipes, theme }) {
   const ingredients = (recipe.recipe_ingredients || []).sort(
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   )
-  const instructions = (recipe.recipe_instructions || []).sort(
-    (a, b) => (a.sort_order ?? a.step_number ?? 0) - (b.sort_order ?? b.step_number ?? 0)
+  const instructions = (recipe.instructions || []).sort(
+    (a, b) => (a.step ?? 0) - (b.step ?? 0)
   )
 
   return (
@@ -222,9 +222,9 @@ function RecipePage({ page, recipes, theme }) {
                   color: theme.textColor,
                 }}
               >
-                {ing.quantity_text && <span className="font-semibold">{ing.quantity_text} </span>}
+                {ing.quantity && <span className="font-semibold">{ing.quantity} </span>}
                 {ing.unit && <span className="font-semibold">{ing.unit} </span>}
-                {ing.ingredient_name}
+                {ing.ingredients?.name || ''}
               </p>
             ))}
           </div>
@@ -259,7 +259,7 @@ function RecipePage({ page, recipes, theme }) {
                     color: theme.textColor,
                   }}
                 >
-                  {inst.instruction_text}
+                  {inst.text}
                 </p>
               </div>
             ))}

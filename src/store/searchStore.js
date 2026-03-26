@@ -56,7 +56,7 @@ const useSearchStore = create((set, get) => ({
       const notes = (recipe.notes || '').toLowerCase()
       const cookName = (recipe.cook_name || '').toLowerCase()
       const ingredients = (recipe.recipe_ingredients || [])
-        .map((i) => (i.ingredient_name || '').toLowerCase())
+        .map((i) => (i.ingredients?.name || '').toLowerCase())
         .join(' ')
       const tags = (recipe.recipe_tags || [])
         .map((t) => t.tags?.name || '')
