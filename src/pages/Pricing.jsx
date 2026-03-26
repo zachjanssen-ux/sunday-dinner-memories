@@ -57,7 +57,7 @@ const TIERS = [
     id: 'heirloom',
     name: 'Heirloom',
     price: 20,
-    priceId: 'price_1TEhnDFSvGIfcR4rInzpc1PF',
+    priceId: 'price_1TEhnDFSvGIfcR4rlnzpc1PF',
     icon: Crown,
     description: 'The complete family recipe experience.',
     features: [

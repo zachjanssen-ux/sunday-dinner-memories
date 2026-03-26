@@ -6,7 +6,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const PRICE_TO_TIER = {
   'price_1TEhfLFSvGIfcR4rY7i8BF6a': 'starter',
   'price_1TEhjQFSvGIfcR4rO51y7KiO': 'homemade',
-  'price_1TEhnDFSvGIfcR4rInzpc1PF': 'heirloom',
+  'price_1TEhnDFSvGIfcR4rlnzpc1PF': 'heirloom',
 }
 
 function getSupabase() {
