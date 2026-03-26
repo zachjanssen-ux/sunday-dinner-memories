@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Save, RotateCcw, PenLine, Plus, Trash2, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import useRecipeStore from '../../store/recipeStore'
 import useAuthStore from '../../store/authStore'
+import { parseIngredientText } from '../../lib/utils'
 
 export default function ScanReview({ data, imageDataUrl, onRescan, source = 'scanned', existingRecipeId }) {
   const navigate = useNavigate()
@@ -22,16 +23,29 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
   const [cookTime, setCookTime] = useState(data?.cook_time_min ?? '')
   const [servings, setServings] = useState(data?.servings ?? '')
   const [notes, setNotes] = useState(data?.notes || '')
-  const [ingredients, setIngredients] = useState(
-    data?.ingredients?.length
-      ? data.ingredients.map((ing) => ({
-          name: ing.name || '',
-          quantity: ing.quantity || '',
-          unit: ing.unit || '',
-          notes: ing.notes || '',
-        }))
-      : [{ name: '', quantity: '', unit: '', notes: '' }]
-  )
+  const [ingredients, setIngredients] = useState(() => {
+    if (!data?.ingredients?.length) return [{ name: '', quantity: '', unit: '', notes: '' }]
+
+    return data.ingredients.map((ing) => {
+      // If quantity is already structured, use it as-is
+      if (ing.quantity && ing.quantity.trim()) {
+        return { name: ing.name || '', quantity: ing.quantity, unit: ing.unit || '', notes: ing.notes || '' }
+      }
+
+      // Otherwise, parse the full text in "name" to extract qty/unit/name
+      // e.g., "1 cup (200g) granulated sugar" → qty: "1", unit: "cup", name: "granulated sugar"
+      const raw = (ing.name || '').trim()
+      if (!raw) return { name: '', quantity: '', unit: '', notes: ing.notes || '' }
+
+      const parsed = parseIngredientText(raw)
+      return {
+        name: parsed.name || raw,
+        quantity: parsed.quantity || '',
+        unit: parsed.unit || '',
+        notes: ing.notes || '',
+      }
+    })
+  })
   const [instructions, setInstructions] = useState(
     data?.instructions?.length
       ? data.instructions.map((inst) => inst.text || '')

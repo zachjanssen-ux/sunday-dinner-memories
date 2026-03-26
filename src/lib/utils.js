@@ -174,3 +174,63 @@ export function toBaseUnit(quantity, unit) {
 
   return { quantity, unit: u }
 }
+
+/**
+ * Parse a full ingredient text like "1 cup (200g) granulated sugar"
+ * into { quantity, unit, name } for display in the review form.
+ */
+export function parseIngredientText(raw) {
+  if (!raw) return { quantity: '', unit: '', name: '' }
+
+  const text = raw.trim()
+
+  // Known units to match (case-insensitive)
+  const units = [
+    'cups?', 'tablespoons?', 'tbsp', 'Tbsp', 'Tablespoons?',
+    'teaspoons?', 'tsp', 'Tsp',
+    'ounces?', 'oz',
+    'pounds?', 'lbs?', 'lb',
+    'grams?', 'g',
+    'kilograms?', 'kg',
+    'milliliters?', 'ml', 'mL',
+    'liters?', 'l', 'L',
+    'pinch', 'dash', 'pieces?', 'cloves?', 'slices?',
+    'cans?', 'sticks?', 'packages?', 'pkg',
+  ]
+  const unitPattern = units.join('|')
+
+  // Try to match: number + unit + name
+  // Handles: "1 cup flour", "1/2 cup sugar", "1 1/2 cups flour", "2.5 oz butter"
+  const regex = new RegExp(
+    `^(\\d+\\s+\\d+/\\d+|\\d+/\\d+|\\d+\\.?\\d*)\\s+(?:\\([^)]*\\)\\s*)?(${unitPattern})\\s*(?:\\([^)]*\\)\\s*)?(.*)$`,
+    'i'
+  )
+
+  const match = text.match(regex)
+  if (match) {
+    const qty = match[1].trim()
+    let unit = match[2].trim().toLowerCase()
+    let name = match[3].trim()
+    // Remove leading parenthetical from name
+    name = name.replace(/^\([^)]*\)\s*/, '')
+
+    // Normalize unit
+    if (/^cups?$/i.test(unit)) unit = 'cup'
+    else if (/^tablespoons?$|^tbsp$/i.test(unit)) unit = 'tbsp'
+    else if (/^teaspoons?$|^tsp$/i.test(unit)) unit = 'tsp'
+    else if (/^ounces?$|^oz$/i.test(unit)) unit = 'oz'
+    else if (/^pounds?$|^lbs?$/i.test(unit)) unit = 'lb'
+    else if (/^grams?$|^g$/i.test(unit)) unit = 'g'
+
+    return { quantity: qty, unit, name }
+  }
+
+  // Try just a number at the start with no unit: "4 large eggs"
+  const numOnly = text.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.?\d*)\s+(.+)$/)
+  if (numOnly) {
+    return { quantity: numOnly[1].trim(), unit: '', name: numOnly[2].trim() }
+  }
+
+  // No number found — return as-is
+  return { quantity: '', unit: '', name: text }
+}
