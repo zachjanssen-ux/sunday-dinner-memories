@@ -71,7 +71,7 @@ export default function RecipeDetail() {
         *,
         cooks ( id, name, bio, photo_url ),
         recipe_tags ( id, tag_id, tags ( id, name ) ),
-        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
+        recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients:ingredient_id ( id, name ) )
       `)
       .eq('id', id)
       .maybeSingle()
@@ -411,32 +411,35 @@ export default function RecipeDetail() {
 
         {/* Servings scaling */}
         {recipe.servings && ingredients.length > 0 && (
-          <div className="bg-linen rounded-xl p-4 border border-stone/20 mb-8">
-            <p className="text-sm font-body font-semibold text-sunday-brown mb-2">
-              Scale servings
+          <div className="bg-linen rounded-xl p-5 border border-stone/20 mb-8">
+            <p className="text-base font-body font-semibold text-cast-iron mb-3">
+              Scale Servings
+              <span className="text-sm text-stone font-normal ml-2">
+                (original: {recipe.servings})
+              </span>
             </p>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               {servingPresets.map((mult) => (
                 <button
                   key={mult}
                   onClick={() => handlePreset(mult)}
-                  className={`px-4 py-2 rounded-lg text-sm font-body font-semibold transition-colors border ${
+                  className={`min-w-[52px] px-4 py-2.5 rounded-lg text-base font-body font-semibold transition-colors border ${
                     servingMultiplier === mult && !customServings
-                      ? 'bg-sienna text-flour border-sienna'
-                      : 'bg-flour text-sunday-brown border-stone/30 hover:bg-linen'
+                      ? 'bg-sienna text-flour border-sienna shadow-sm'
+                      : 'bg-flour text-sunday-brown border-stone/30 hover:bg-cream'
                   }`}
                 >
-                  {mult === 0.5 ? '\u00BD' : mult}\u00D7
+                  {mult === 0.5 ? '½' : mult}×
                 </button>
               ))}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   value={customServings}
                   onChange={(e) => handleCustomServings(e.target.value)}
                   placeholder="Custom"
                   min="1"
-                  className="w-20 bg-flour border border-stone/30 rounded-lg px-3 py-2 text-sm font-body text-sunday-brown
+                  className="w-24 bg-flour border border-stone/30 rounded-lg px-3 py-2.5 text-base font-body text-sunday-brown
                     focus:ring-2 focus:ring-sienna/50 focus:outline-none placeholder:text-stone/50"
                 />
                 <span className="text-sm font-body text-stone">servings</span>
@@ -451,24 +454,38 @@ export default function RecipeDetail() {
             <h2 className="text-2xl font-display text-cast-iron mb-4">Ingredients</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
               {ingredients.map((ing) => {
+                // Get ingredient name from joined table or fall back to raw quantity text
+                const ingName = ing.ingredients?.name || ''
+                const hasStructuredData = ing.quantity && ing.quantity.trim()
                 const scaledQty = ing.quantity_numeric
                   ? ing.quantity_numeric * servingMultiplier
                   : null
 
+                // If the ingredient name contains the full text (e.g. "1/2 cup unsalted butter")
+                // and there's no separate quantity, just show the full name as-is
+                const isFullText = ingName && !hasStructuredData && !ing.quantity_numeric
+
                 return (
                   <div
                     key={ing.id}
-                    className="flex items-baseline gap-2 py-1.5 border-b border-stone/10"
+                    className="flex items-baseline gap-2 py-2 border-b border-stone/10"
                   >
-                    <span className="font-body text-sunday-brown">
-                      {scaledQty !== null && (
-                        <span className="font-semibold">{formatQuantity(scaledQty)} </span>
+                    <span className="font-body text-sunday-brown text-base leading-relaxed">
+                      {isFullText ? (
+                        // Show the full ingredient text as-is (from JSON-LD import)
+                        <span>{ingName}</span>
+                      ) : (
+                        <>
+                          {scaledQty !== null && (
+                            <span className="font-semibold">{formatQuantity(scaledQty)} </span>
+                          )}
+                          {!scaledQty && hasStructuredData && (
+                            <span className="font-semibold">{ing.quantity} </span>
+                          )}
+                          {ing.unit && <span>{ing.unit} </span>}
+                          <span>{ingName}</span>
+                        </>
                       )}
-                      {!scaledQty && ing.quantity && (
-                        <span className="font-semibold">{ing.quantity} </span>
-                      )}
-                      {ing.unit && <span>{ing.unit} </span>}
-                      {ing.ingredients?.name || ''}
                     </span>
                     {ing.notes && (
                       <span className="text-sm text-stone font-body">({ing.notes})</span>

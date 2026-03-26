@@ -108,7 +108,7 @@ const useRecipeStore = create((set, get) => ({
           *,
           cooks ( id, name, bio, photo_url ),
           recipe_tags ( id, tag_id, tags ( id, name ) ),
-          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
+          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order, ingredients:ingredient_id ( id, name ) )
         `)
         .eq('family_id', familyId)
         .order('created_at', { ascending: false })
