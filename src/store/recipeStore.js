@@ -198,21 +198,36 @@ const useRecipeStore = create((set, get) => ({
   },
 
   addRecipe: async (recipe, ingredients, instructions, tagIds) => {
-    const { data: newRecipe, error } = await supabase
-      .from('recipes')
-      .insert(recipe)
-      .select(`
-        *,
-        cooks ( id, name, bio, photo_url )
-      `)
-      .single()
+    // Use server-side RPC to create recipe (bypasses RLS SELECT-after-INSERT hang)
+    const { data: recipeId, error } = await supabase.rpc('create_recipe', {
+      p_family_id: recipe.family_id,
+      p_contributed_by: recipe.contributed_by,
+      p_original_cook_id: recipe.original_cook_id || null,
+      p_title: recipe.title,
+      p_description: recipe.description || null,
+      p_category: recipe.category || null,
+      p_cuisine: recipe.cuisine || null,
+      p_difficulty: recipe.difficulty || null,
+      p_dietary_labels: recipe.dietary_labels || null,
+      p_prep_time_min: recipe.prep_time_min || null,
+      p_cook_time_min: recipe.cook_time_min || null,
+      p_servings: recipe.servings || null,
+      p_instructions: recipe.instructions || null,
+      p_notes: recipe.notes || null,
+      p_source: recipe.source || 'manual',
+      p_source_url: recipe.source_url || null,
+      p_original_image_url: recipe.original_image_url || null,
+      p_scan_status: recipe.scan_status || null,
+    })
 
     if (error) throw error
+
+    const newRecipeId = recipeId
 
     // Insert ingredients into recipe_ingredients table
     if (ingredients?.length > 0) {
       const ingredientRows = ingredients.map((ing, idx) => ({
-        recipe_id: newRecipe.id,
+        recipe_id: newRecipeId,
         ingredient_id: ing.ingredient_id || null,
         quantity: ing.quantity || ing.quantity_text || '',
         quantity_numeric: ing.quantity_numeric || null,
@@ -231,7 +246,7 @@ const useRecipeStore = create((set, get) => ({
     // Insert tag links
     if (tagIds?.length > 0) {
       const tagRows = tagIds.map((tagId) => ({
-        recipe_id: newRecipe.id,
+        recipe_id: newRecipeId,
         tag_id: tagId,
       }))
       const { error: tagErr } = await supabase
@@ -240,13 +255,12 @@ const useRecipeStore = create((set, get) => ({
       if (tagErr) console.error('Error inserting tags:', tagErr)
     }
 
-    // Re-fetch to get full relations
+    // Add to local state with the data we have
     const { recipes } = get()
     const enriched = {
-      ...newRecipe,
-      cook_name: newRecipe.cooks?.name || 'Unknown',
-      cook_bio: newRecipe.cooks?.bio || '',
-      cook_photo: newRecipe.cooks?.photo_url || '',
+      id: newRecipeId,
+      ...recipe,
+      cook_name: 'Unknown',
       is_favorited: false,
       favorite_count: 0,
       recipe_tags: [],
@@ -254,7 +268,7 @@ const useRecipeStore = create((set, get) => ({
     }
     set({ recipes: [enriched, ...recipes] })
 
-    return newRecipe
+    return { id: newRecipeId, ...recipe }
   },
 
   updateRecipe: async (id, updates, ingredients, instructions, tagIds) => {
