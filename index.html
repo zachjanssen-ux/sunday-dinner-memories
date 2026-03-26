@@ -9,6 +9,31 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Force-clear any stale service workers on load
+      // This runs BEFORE React loads, ensuring fresh code
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          var cleared = false;
+          registrations.forEach(function(reg) {
+            // Check if the SW is using old cached content
+            if (reg.active && reg.active.scriptURL.includes('sw.js')) {
+              reg.update(); // Force SW to check for updates
+            }
+          });
+        });
+        // Also clear old caches that might contain stale JS
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            names.forEach(function(name) {
+              if (name.includes('workbox') || name.includes('precache')) {
+                caches.delete(name);
+              }
+            });
+          });
+        }
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
