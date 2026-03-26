@@ -199,25 +199,28 @@ const useRecipeStore = create((set, get) => ({
 
   addRecipe: async (recipe, ingredients, instructions, tagIds) => {
     // Use server-side RPC to create recipe (bypasses RLS SELECT-after-INSERT hang)
+    // Single JSONB param so PostgREST can always match the function
     const { data: recipeId, error } = await supabase.rpc('create_recipe', {
-      p_family_id: recipe.family_id,
-      p_contributed_by: recipe.contributed_by,
-      p_original_cook_id: recipe.original_cook_id || null,
-      p_title: recipe.title,
-      p_description: recipe.description || null,
-      p_category: recipe.category || null,
-      p_cuisine: recipe.cuisine || null,
-      p_difficulty: recipe.difficulty || null,
-      p_dietary_labels: recipe.dietary_labels || null,
-      p_prep_time_min: recipe.prep_time_min || null,
-      p_cook_time_min: recipe.cook_time_min || null,
-      p_servings: recipe.servings || null,
-      p_instructions: recipe.instructions || null,
-      p_notes: recipe.notes || null,
-      p_source: recipe.source || 'manual',
-      p_source_url: recipe.source_url || null,
-      p_original_image_url: recipe.original_image_url || null,
-      p_scan_status: recipe.scan_status || null,
+      recipe_data: {
+        family_id: recipe.family_id,
+        contributed_by: recipe.contributed_by,
+        original_cook_id: recipe.original_cook_id || null,
+        title: recipe.title,
+        description: recipe.description || null,
+        category: recipe.category || null,
+        cuisine: recipe.cuisine || null,
+        difficulty: recipe.difficulty || null,
+        dietary_labels: recipe.dietary_labels || null,
+        prep_time_min: recipe.prep_time_min || null,
+        cook_time_min: recipe.cook_time_min || null,
+        servings: recipe.servings || null,
+        instructions: recipe.instructions || null,
+        notes: recipe.notes || null,
+        source: recipe.source || 'manual',
+        source_url: recipe.source_url || null,
+        original_image_url: recipe.original_image_url || null,
+        scan_status: recipe.scan_status || null,
+      },
     })
 
     if (error) throw error
