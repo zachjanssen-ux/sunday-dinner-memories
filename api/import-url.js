@@ -196,12 +196,16 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fetch the page
+    // Fetch the page with a realistic browser User-Agent
+    // Many recipe sites (AllRecipes, SimplyRecipes, etc.) block bot-like user agents with 403
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; SundayDinnerMemories/1.0)',
-        'Accept': 'text/html,application/xhtml+xml',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
       },
+      redirect: 'follow',
     })
 
     if (!response.ok) {
