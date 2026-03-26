@@ -1,7 +1,7 @@
 import { getOpenRouterClient, MODELS } from './_lib/openrouter.js'
 import { checkUsageLimits, recordUsage } from './_lib/usage.js'
 
-const RECIPE_EXTRACTION_PROMPT = `You are a recipe extraction assistant. Analyze this image of a recipe card and extract the following into valid JSON:
+const SINGLE_IMAGE_PROMPT = `You are a recipe extraction assistant. Analyze this image of a recipe card and extract the following into valid JSON:
 {
   "title": "string",
   "description": "string (brief description of the dish)",
@@ -12,11 +12,31 @@ const RECIPE_EXTRACTION_PROMPT = `You are a recipe extraction assistant. Analyze
   "prep_time_min": number,
   "cook_time_min": number,
   "servings": number,
-  "ingredients": [{ "name": "string", "quantity": "string", "unit": "string", "notes": "string" }],
+  "ingredients": [{ "name": "string (just the ingredient name)", "quantity": "string (the amount, e.g. 1, 1/2, 2.5)", "unit": "string (cup, tbsp, tsp, oz, lb, etc.)", "notes": "string (prep notes like chopped, room temp)" }],
   "instructions": [{ "step": number, "text": "string" }],
   "suggested_tags": ["string"],
   "notes": "string (any additional notes from the recipe)"
 }
+IMPORTANT: For ingredients, ALWAYS separate the quantity and unit from the name. "2 cups flour" should be quantity:"2", unit:"cup", name:"flour".
+If handwriting is unclear, add [?] after uncertain words. Respond ONLY with the JSON — no markdown fences, no explanation.`
+
+const MULTI_IMAGE_PROMPT = `You are a recipe extraction assistant. I'm showing you TWO images of the SAME recipe card — the front and the back. Combine ALL information from both sides into a single recipe. Extract the following into valid JSON:
+{
+  "title": "string",
+  "description": "string (brief description of the dish)",
+  "original_cook": "string (who wrote/created this recipe, if visible)",
+  "cuisine": "string (e.g. Italian, Southern, Mexican)",
+  "difficulty": "string (easy, medium, hard)",
+  "dietary_labels": ["string (e.g. vegetarian, gluten-free, dairy-free)"],
+  "prep_time_min": number,
+  "cook_time_min": number,
+  "servings": number,
+  "ingredients": [{ "name": "string (just the ingredient name)", "quantity": "string (the amount, e.g. 1, 1/2, 2.5)", "unit": "string (cup, tbsp, tsp, oz, lb, etc.)", "notes": "string (prep notes like chopped, room temp)" }],
+  "instructions": [{ "step": number, "text": "string" }],
+  "suggested_tags": ["string"],
+  "notes": "string (any additional notes from the recipe)"
+}
+IMPORTANT: Combine ingredients and instructions from BOTH sides of the card. For ingredients, ALWAYS separate the quantity and unit from the name.
 If handwriting is unclear, add [?] after uncertain words. Respond ONLY with the JSON — no markdown fences, no explanation.`
 
 const corsHeaders = {
@@ -26,7 +46,6 @@ const corsHeaders = {
 }
 
 export default async function handler(req, res) {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(200, corsHeaders)
     res.end()
@@ -38,13 +57,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { image, mimeType, familyId, userId } = req.body
+    const { image, images, mimeType, familyId, userId } = req.body
 
-    if (!image) {
+    // Support both single image (backward compat) and multi-image
+    let imageList = []
+
+    if (images && Array.isArray(images) && images.length > 0) {
+      // Multi-image mode: [{ base64, mimeType, label }]
+      imageList = images
+    } else if (image) {
+      // Single image mode (backward compat)
+      imageList = [{ base64: image, mimeType: mimeType || 'image/jpeg', label: 'Front' }]
+    } else {
       return res.status(400).json({ error: 'No image data provided' })
     }
 
-    // Check usage limits if familyId provided
+    // Check usage limits
     if (familyId) {
       const check = await checkUsageLimits(familyId, 'scan')
       if (!check.allowed) {
@@ -54,6 +82,31 @@ export default async function handler(req, res) {
     }
 
     const client = getOpenRouterClient()
+    const isMultiSide = imageList.length > 1
+    const prompt = isMultiSide ? MULTI_IMAGE_PROMPT : SINGLE_IMAGE_PROMPT
+
+    // Build message content with image(s) + prompt
+    const content = []
+
+    imageList.forEach((img, idx) => {
+      if (isMultiSide) {
+        content.push({
+          type: 'text',
+          text: `[${img.label || (idx === 0 ? 'Front' : 'Back')} of recipe card]`,
+        })
+      }
+      content.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:${img.mimeType || 'image/jpeg'};base64,${img.base64}`,
+        },
+      })
+    })
+
+    content.push({
+      type: 'text',
+      text: prompt,
+    })
 
     const response = await client.chat.completions.create({
       model: MODELS.VISION,
@@ -61,18 +114,7 @@ export default async function handler(req, res) {
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mimeType || 'image/jpeg'};base64,${image}`,
-              },
-            },
-            {
-              type: 'text',
-              text: RECIPE_EXTRACTION_PROMPT,
-            },
-          ],
+          content,
         },
       ],
     })
@@ -83,7 +125,6 @@ export default async function handler(req, res) {
     try {
       parsed = JSON.parse(text)
     } catch {
-      // Try to extract JSON from the response if it has extra text
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0])
