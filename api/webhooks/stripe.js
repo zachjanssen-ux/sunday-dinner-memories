@@ -1,5 +1,4 @@
 import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -9,15 +8,72 @@ const PRICE_TO_TIER = {
   'price_1TEhnDFSvGIfcR4rlnzpc1PF': 'heirloom',
 }
 
-function getSupabase() {
-  return createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
-  )
+// Use the service role key for webhook operations (bypasses RLS)
+// Falls back to anon key if service role not set
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
+
+// Direct fetch helper — avoids importing the Supabase client
+async function supabaseUpsert(table, data, onConflict) {
+  const url = `${SUPABASE_URL}/rest/v1/${table}`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer': `resolution=merge-duplicates${onConflict ? `,on_conflict=${onConflict}` : ''}`,
+    },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const err = await response.text()
+    console.error(`Supabase upsert ${table} error:`, err)
+  }
+  return response.ok
 }
 
-// Vercel serverless functions need raw body for Stripe webhook verification.
-// We export a config to disable body parsing.
+async function supabaseUpdate(table, data, filter) {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`)
+  for (const [key, value] of Object.entries(filter)) {
+    url.searchParams.set(key, `eq.${value}`)
+  }
+  const response = await fetch(url.toString(), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+    },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const err = await response.text()
+    console.error(`Supabase update ${table} error:`, err)
+  }
+  return response.ok
+}
+
+async function supabaseQuery(table, filter) {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`)
+  url.searchParams.set('select', '*')
+  for (const [key, value] of Object.entries(filter)) {
+    url.searchParams.set(key, `eq.${value}`)
+  }
+  url.searchParams.set('limit', '1')
+  const response = await fetch(url.toString(), {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Accept': 'application/json',
+    },
+  })
+  if (!response.ok) return null
+  const data = await response.json()
+  return data?.[0] || null
+}
+
+// Vercel serverless functions need raw body for Stripe webhook verification
 export const config = {
   api: {
     bodyParser: false,
@@ -54,58 +110,54 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Webhook Error: ${err.message}` })
   }
 
-  const supabase = getSupabase()
+  console.log(`Stripe webhook received: ${event.type}`)
 
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object
         const familyId = session.metadata?.familyId || session.client_reference_id
-        const userId = session.metadata?.userId
         const subscriptionId = session.subscription
         const customerId = session.customer
+
+        if (!familyId || familyId === 'pending') {
+          console.log('No familyId in checkout session metadata, skipping')
+          break
+        }
+
+        if (!subscriptionId) {
+          console.log('No subscription in checkout session (might be one-time payment)')
+          break
+        }
 
         // Fetch the subscription to get the price ID
         const sub = await stripe.subscriptions.retrieve(subscriptionId)
         const priceId = sub.items.data[0]?.price?.id
         const planTier = PRICE_TO_TIER[priceId] || 'starter'
 
-        // Upsert subscription record
-        const { error: subError } = await supabase
-          .from('user_subscriptions')
-          .upsert(
-            {
-              family_id: familyId,
-              user_id: userId,
-              plan_tier: planTier,
-              status: 'active',
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId,
-              current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'family_id' }
-          )
+        console.log(`Creating subscription: family=${familyId}, tier=${planTier}, price=${priceId}`)
 
-        if (subError) console.error('Error upserting subscription:', subError)
+        // Upsert subscription record
+        await supabaseUpsert('user_subscriptions', {
+          family_id: familyId,
+          plan_tier: planTier,
+          status: 'active',
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+        }, 'family_id')
 
         // Initialize usage tracking
-        const { error: usageError } = await supabase
-          .from('usage_tracking')
-          .upsert(
-            {
-              family_id: familyId,
-              scans_used: 0,
-              api_credits_used: 0,
-              period_start: new Date(sub.current_period_start * 1000).toISOString(),
-              period_end: new Date(sub.current_period_end * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'family_id' }
-          )
+        await supabaseUpsert('usage_tracking', {
+          family_id: familyId,
+          scan_count: 0,
+          api_credit_spent: 0,
+          billing_period_start: new Date(sub.current_period_start * 1000).toISOString().split('T')[0],
+          last_updated: new Date().toISOString(),
+        }, 'family_id')
 
-        if (usageError) console.error('Error initializing usage:', usageError)
+        console.log(`Subscription created successfully for family ${familyId}`)
         break
       }
 
@@ -120,36 +172,26 @@ export default async function handler(req, res) {
         const planTier = PRICE_TO_TIER[priceId] || 'starter'
 
         // Find the family by stripe_subscription_id
-        const { data: existingSub } = await supabase
-          .from('user_subscriptions')
-          .select('family_id')
-          .eq('stripe_subscription_id', subscriptionId)
-          .maybeSingle()
+        const existingSub = await supabaseQuery('user_subscriptions', {
+          stripe_subscription_id: subscriptionId,
+        })
 
         if (existingSub) {
           // Update subscription period
-          await supabase
-            .from('user_subscriptions')
-            .update({
-              plan_tier: planTier,
-              current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-              status: 'active',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('family_id', existingSub.family_id)
+          await supabaseUpdate('user_subscriptions', {
+            plan_tier: planTier,
+            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+            status: 'active',
+          }, { family_id: existingSub.family_id })
 
           // Reset usage for new billing period
-          await supabase
-            .from('usage_tracking')
-            .update({
-              scans_used: 0,
-              api_credits_used: 0,
-              period_start: new Date(sub.current_period_start * 1000).toISOString(),
-              period_end: new Date(sub.current_period_end * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('family_id', existingSub.family_id)
+          await supabaseUpdate('usage_tracking', {
+            scan_count: 0,
+            api_credit_spent: 0,
+            billing_period_start: new Date(sub.current_period_start * 1000).toISOString().split('T')[0],
+            last_updated: new Date().toISOString(),
+          }, { family_id: existingSub.family_id })
         }
         break
       }
@@ -159,34 +201,26 @@ export default async function handler(req, res) {
         const priceId = sub.items.data[0]?.price?.id
         const planTier = PRICE_TO_TIER[priceId] || 'starter'
 
-        await supabase
-          .from('user_subscriptions')
-          .update({
-            plan_tier: planTier,
-            status: sub.status === 'active' ? 'active' : sub.status,
-            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('stripe_subscription_id', sub.id)
+        await supabaseUpdate('user_subscriptions', {
+          plan_tier: planTier,
+          status: sub.status === 'active' ? 'active' : sub.status,
+          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+        }, { stripe_subscription_id: sub.id })
         break
       }
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object
 
-        await supabase
-          .from('user_subscriptions')
-          .update({
-            status: 'canceled',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('stripe_subscription_id', sub.id)
+        await supabaseUpdate('user_subscriptions', {
+          status: 'canceled',
+        }, { stripe_subscription_id: sub.id })
         break
       }
 
       default:
-        // Unhandled event type
+        console.log(`Unhandled event type: ${event.type}`)
         break
     }
 
