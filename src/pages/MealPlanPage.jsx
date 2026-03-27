@@ -8,6 +8,7 @@ import useShoppingListStore from '../store/shoppingListStore'
 import Layout from '../components/layout/Layout'
 import PlanGate from '../components/guards/PlanGate'
 import RecipePicker from '../components/mealplan/RecipePicker'
+import WhatCanIMake from '../components/recipes/WhatCanIMake'
 import MealSlotCell from '../components/mealplan/MealSlotCell'
 import {
   CalendarDays,
@@ -53,6 +54,7 @@ export default function MealPlanPage() {
   const [newPlanEnd, setNewPlanEnd] = useState('')
   const [generating, setGenerating] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [slotPickerRecipe, setSlotPickerRecipe] = useState(null)
 
   // Load data
   useEffect(() => {
@@ -312,6 +314,12 @@ export default function MealPlanPage() {
               )}
             </div>
 
+            {/* What Can I Make? */}
+            <WhatCanIMake
+              collapsible
+              onAddToPlan={(recipe) => setSlotPickerRecipe(recipe)}
+            />
+
             {/* Calendar Grid */}
             <div className="bg-flour rounded-xl shadow-sm border border-stone/10 overflow-x-auto mb-6">
               <table className="w-full min-w-[700px]">
@@ -485,6 +493,67 @@ export default function MealPlanPage() {
                 >
                   Create Plan
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Slot Picker Modal (from What Can I Make) */}
+        {slotPickerRecipe && currentPlan && planDays.length > 0 && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-cast-iron/40"
+              onClick={() => setSlotPickerRecipe(null)}
+            />
+            <div className="relative bg-flour rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-display text-cast-iron">
+                  Add "{slotPickerRecipe.title}" to Plan
+                </h2>
+                <button
+                  onClick={() => setSlotPickerRecipe(null)}
+                  className="p-1 hover:bg-linen rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-stone" />
+                </button>
+              </div>
+              <p className="text-sm font-body text-sunday-brown mb-4">
+                Pick a day and meal slot:
+              </p>
+              <div className="space-y-2">
+                {planDays.map((day) => (
+                  <div key={day.toISOString()} className="bg-linen rounded-lg p-3">
+                    <p className="text-sm font-body font-semibold text-cast-iron mb-2">
+                      {format(day, 'EEEE, MMM d')}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {MEAL_SLOTS.map((slot) => (
+                        <button
+                          key={slot}
+                          onClick={async () => {
+                            try {
+                              await addItem({
+                                meal_plan_id: currentPlan.id,
+                                recipe_id: slotPickerRecipe.id,
+                                date: format(day, 'yyyy-MM-dd'),
+                                meal_slot: slot,
+                                servings_multiplier: 1,
+                                notes: '',
+                                added_by: currentMember?.id || null,
+                              })
+                              setSlotPickerRecipe(null)
+                            } catch (err) {
+                              console.error('Error adding item:', err)
+                            }
+                          }}
+                          className="text-xs font-body font-semibold px-3 py-1.5 rounded-lg bg-sienna/10 text-sienna hover:bg-sienna/20 transition-colors"
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

@@ -10,6 +10,8 @@ import OnboardingFlow from '../components/onboarding/OnboardingFlow'
 import BetaBanner from '../components/onboarding/BetaBanner'
 import FeedbackButton from '../components/feedback/FeedbackButton'
 import { toast } from 'react-hot-toast'
+import PlanGate from '../components/guards/PlanGate'
+import WhatCanIMake from '../components/recipes/WhatCanIMake'
 import { Plus, Users, ChefHat, Loader2, CreditCard, ArrowUpRight, AlertTriangle, Sparkles } from 'lucide-react'
 
 function UsageCard() {
@@ -261,6 +263,11 @@ export default function Dashboard() {
             </Link>
           )}
         </div>
+
+        {/* What Can I Make? — Homemade+ only */}
+        <PlanGate feature="mealPlan" inline>
+          <WhatCanIMake collapsible />
+        </PlanGate>
 
         {/* Filter Bar */}
         <div className="mb-6">
