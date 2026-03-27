@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Mic, Square, Play, Pause, Save, X, Loader2 } from 'lucide-react'
+import { Mic, Square, Play, Pause, Save, X, Loader2, Upload } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { insert as directInsert } from '../../lib/supabaseDirectFetch'
 import useAuthStore from '../../store/authStore'
@@ -7,6 +7,7 @@ import QRCode from 'qrcode'
 import toast from 'react-hot-toast'
 
 const LISTEN_BASE_URL = 'https://sundaydinnermemories.com/listen'
+const MAX_RECORDING_SECONDS = 600 // 10 minutes max
 
 export default function AudioRecorder({ recipeId, familyId, onSaved }) {
   const { currentMember } = useAuthStore()
@@ -18,6 +19,7 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [showRecorder, setShowRecorder] = useState(false)
+  const fileInputRef = useRef(null)
 
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -62,10 +64,47 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
       mediaRecorder.start(250) // collect chunks every 250ms
       setRecording(true)
       setElapsed(0)
-      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
+      timerRef.current = setInterval(() => {
+        setElapsed((e) => {
+          const next = e + 1
+          // Auto-stop at max recording time
+          if (next >= MAX_RECORDING_SECONDS) {
+            stopRecording()
+            toast('Maximum recording time reached (10 minutes)', { icon: '⏱️' })
+          }
+          return next
+        })
+      }, 1000)
     } catch (err) {
       console.error('Microphone access error:', err)
       toast.error('Could not access microphone. Check browser permissions.')
+    }
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/x-m4a', 'audio/aac']
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(mp3|m4a|wav|webm|ogg|aac)$/i)) {
+      toast.error('Please upload an audio file (MP3, M4A, WAV, etc.)')
+      return
+    }
+
+    // 50MB max
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Audio file must be under 50MB')
+      return
+    }
+
+    setAudioBlob(file)
+    setAudioUrl(URL.createObjectURL(file))
+
+    // Try to get duration
+    const tempAudio = new Audio(URL.createObjectURL(file))
+    tempAudio.onloadedmetadata = () => {
+      setElapsed(Math.round(tempAudio.duration))
     }
   }
 
@@ -104,11 +143,23 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
     setSaving(true)
 
     try {
+      // Determine file extension from blob type or filename
+      let ext = 'webm'
+      if (audioBlob.name) {
+        ext = audioBlob.name.split('.').pop() || 'webm'
+      } else if (audioBlob.type?.includes('mp3') || audioBlob.type?.includes('mpeg')) {
+        ext = 'mp3'
+      } else if (audioBlob.type?.includes('mp4') || audioBlob.type?.includes('m4a')) {
+        ext = 'm4a'
+      } else if (audioBlob.type?.includes('wav')) {
+        ext = 'wav'
+      }
+
       // Upload audio to Supabase Storage
-      const filename = `${recipeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.webm`
+      const filename = `${recipeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('audio-files')
-        .upload(filename, audioBlob, { contentType: 'audio/webm' })
+        .upload(filename, audioBlob, { contentType: audioBlob.type || 'audio/webm' })
 
       if (uploadError) throw uploadError
 
@@ -162,14 +213,34 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
 
   if (!showRecorder) {
     return (
-      <button
-        onClick={() => setShowRecorder(true)}
-        className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-sienna text-flour
-          font-body font-semibold shadow-md hover:bg-sienna/90 transition-colors"
-      >
-        <Mic className="w-5 h-5" />
-        Record a Memory
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => setShowRecorder(true)}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-sienna text-flour
+            font-body font-semibold shadow-md hover:bg-sienna/90 transition-colors"
+        >
+          <Mic className="w-5 h-5" />
+          Record a Memory
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-linen text-sunday-brown
+            border border-stone/20 font-body font-semibold hover:bg-cream transition-colors"
+        >
+          <Upload className="w-5 h-5" />
+          Upload Audio
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/mp3,audio/mpeg,audio/m4a,audio/mp4,audio/wav,audio/webm,audio/ogg,audio/aac,.mp3,.m4a,.wav,.webm,.ogg,.aac"
+          onChange={(e) => {
+            handleFileUpload(e)
+            setShowRecorder(true)
+          }}
+          className="hidden"
+        />
+      </div>
     )
   }
 
@@ -209,7 +280,7 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
           </p>
           <p className="font-body text-stone text-sm">
             {recording
-              ? 'Recording... tap the square to stop'
+              ? `Recording... tap the square to stop (${formatTime(MAX_RECORDING_SECONDS - elapsed)} remaining)`
               : 'Share a memory about this recipe'}
           </p>
 
