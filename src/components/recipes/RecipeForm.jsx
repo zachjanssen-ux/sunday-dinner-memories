@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import useAuthStore from '../../store/authStore'
 import useRecipeStore from '../../store/recipeStore'
 import { parseQuantity } from '../../lib/utils'
+import { compressImage } from '../../lib/imageUtils'
+import { supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
 import {
   Plus,
   Trash2,
@@ -9,6 +12,9 @@ import {
   X,
   ChevronDown,
   Loader2,
+  Upload,
+  Camera,
+  Video,
 } from 'lucide-react'
 
 const categoryOptions = [
@@ -268,6 +274,10 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
   const [cookTime, setCookTime] = useState(recipe?.cook_time_min || '')
   const [servings, setServings] = useState(recipe?.servings || '')
   const [notes, setNotes] = useState(recipe?.notes || '')
+  const [videoUrl, setVideoUrl] = useState(recipe?.video_url || '')
+  const [photos, setPhotos] = useState(recipe?.photos || [])
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
+  const photoInputRef = useRef(null)
   const [tagIds, setTagIds] = useState(
     (recipe?.recipe_tags || []).map((rt) => rt.tag_id || rt.tags?.id).filter(Boolean)
   )
@@ -330,6 +340,43 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
     )
   }
 
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setUploadingPhotos(true)
+    try {
+      const newUrls = []
+      for (const file of files) {
+        const compressed = await compressImage(file)
+        const ext = compressed.name.split('.').pop() || 'jpg'
+        const path = `temp/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('recipe-photos')
+          .upload(path, compressed, { contentType: compressed.type })
+        if (uploadError) {
+          toast.error(`Failed to upload ${file.name}`)
+          continue
+        }
+        const { data: urlData } = supabase.storage.from('recipe-photos').getPublicUrl(path)
+        if (urlData?.publicUrl) newUrls.push(urlData.publicUrl)
+      }
+      if (newUrls.length > 0) {
+        setPhotos((prev) => [...prev, ...newUrls])
+        toast.success(`${newUrls.length} photo${newUrls.length > 1 ? 's' : ''} added`)
+      }
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      toast.error('Failed to upload photos')
+    } finally {
+      setUploadingPhotos(false)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    }
+  }
+
+  const removePhoto = (idx) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   const handleDragStart = (idx) => setDragIdx(idx)
   const handleDragOver = (e, idx) => {
     e.preventDefault()
@@ -381,6 +428,8 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
         cook_time_min: cookTime ? parseInt(cookTime, 10) : null,
         servings: servings ? parseInt(servings, 10) : null,
         notes: notes.trim(),
+        video_url: videoUrl.trim() || null,
+        photos: photos.length > 0 ? photos : [],
         instructions: instructionsJson.length > 0 ? instructionsJson : null,
         family_id: currentFamily.id,
         contributed_by: currentMember.id,
@@ -750,6 +799,69 @@ export default function RecipeForm({ recipe, onSave, onCancel }) {
             className="w-full bg-flour border border-stone/30 rounded-lg px-4 py-3 font-body text-sunday-brown
               focus:ring-2 focus:ring-sienna/50 focus:outline-none placeholder:text-stone/50 resize-none"
           />
+        </div>
+
+        {/* Photos */}
+        <div>
+          <label className="block text-sm font-body font-semibold text-sunday-brown mb-2">
+            Photos
+          </label>
+          {photos.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
+              {photos.map((url, idx) => (
+                <div key={url} className="relative group aspect-square rounded-lg overflow-hidden border border-stone/20">
+                  <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(idx)}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-cast-iron/70 text-flour
+                      flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-tomato"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-stone/30
+            text-sm font-body font-semibold text-sienna hover:bg-linen transition-colors cursor-pointer">
+            {uploadingPhotos ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4" />
+            )}
+            {uploadingPhotos ? 'Uploading...' : 'Upload Photos'}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoUpload}
+              disabled={uploadingPhotos}
+              className="sr-only"
+            />
+          </label>
+        </div>
+
+        {/* Video URL */}
+        <div>
+          <label className="block text-sm font-body font-semibold text-sunday-brown mb-1">
+            Video URL
+          </label>
+          <div className="flex items-center gap-2">
+            <Video className="w-4 h-4 text-stone shrink-0" />
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="YouTube or Vimeo URL..."
+              className="flex-1 bg-flour border border-stone/30 rounded-lg px-4 py-3 font-body text-sunday-brown
+                focus:ring-2 focus:ring-sienna/50 focus:outline-none placeholder:text-stone/50"
+            />
+          </div>
+          <p className="text-xs font-body text-stone mt-1">
+            Paste a YouTube or Vimeo link to embed a video with this recipe
+          </p>
         </div>
 
         {/* Tags */}

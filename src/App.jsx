@@ -29,6 +29,7 @@ import SearchPage from './pages/SearchPage'
 import Pricing from './pages/Pricing'
 import BillingPage from './pages/BillingPage'
 import LandingPage from './pages/LandingPage'
+import ListenPage from './pages/ListenPage'
 import NotFound from './pages/NotFound'
 import useAuthStore from './store/authStore'
 import { Loader2 } from 'lucide-react'
@@ -55,6 +56,9 @@ function AppRoutes() {
 
       {/* Public recipe page — NO auth required (Phase 5) */}
       <Route path="/r/:slug" element={<PublicRecipe />} />
+
+      {/* Public listen page — NO auth required (audio QR code target) */}
+      <Route path="/listen/:id" element={<ListenPage />} />
       <Route
         path="/dashboard"
         element={

@@ -6,6 +6,10 @@ import useRecipePermissions from '../hooks/useRecipePermissions'
 import { formatQuantity } from '../lib/utils'
 import { AddToCookbookModal } from '../components/recipes/CookbookModal'
 import AudioMemories from '../components/recipes/AudioMemories'
+import AudioRecorder from '../components/recipes/AudioRecorder'
+import AudioMemoryPlayer from '../components/recipes/AudioMemoryPlayer'
+import PhotoGallery from '../components/recipes/PhotoGallery'
+import VideoEmbed from '../components/recipes/VideoEmbed'
 import PDFExportButton from '../components/pdf/PDFExportButton'
 import StoryEditor from '../components/recipes/StoryEditor'
 import StoryDisplay from '../components/recipes/StoryDisplay'
@@ -23,6 +27,7 @@ import {
   BookOpen,
   PenLine,
   Loader2,
+  Volume2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -242,6 +247,15 @@ export default function RecipeDetail() {
             <p className="text-sunday-brown font-body mt-3">{recipe.description}</p>
           )}
         </div>
+
+        {/* Photo Gallery */}
+        <PhotoGallery
+          recipeId={recipe.id}
+          photos={recipe.photos || []}
+          canUpload={permissions.canUpload}
+          canDelete={permissions.isContributor}
+          onPhotosChange={(photos) => setRecipe((prev) => ({ ...prev, photos }))}
+        />
 
         {/* Badges */}
         <div className="flex flex-wrap gap-2 mb-6">
@@ -541,9 +555,50 @@ export default function RecipeDetail() {
           </div>
         )}
 
-        {/* Audio Memories */}
+        {/* Video Embed */}
+        {(recipe.video_url || permissions.canEdit) && (
+          <VideoEmbed
+            recipeId={recipe.id}
+            videoUrl={recipe.video_url}
+            canEdit={permissions.canEdit}
+            onVideoChange={(video_url) => setRecipe((prev) => ({ ...prev, video_url }))}
+          />
+        )}
+
+        {/* Family Stories — Audio Memories */}
         <div className="mb-8">
-          <AudioMemories memories={audioMemories} />
+          <div className="flex items-center gap-2 mb-4">
+            <Volume2 className="w-5 h-5 text-sienna" />
+            <h2 className="text-2xl font-display text-cast-iron">Family Stories</h2>
+          </div>
+          <p className="font-body text-stone text-sm mb-4">
+            Listen to the memories and stories behind this recipe
+          </p>
+
+          {audioMemories.length > 0 && (
+            <div className="space-y-3 mb-4">
+              {audioMemories.map((memory) => (
+                <AudioMemoryPlayer key={memory.id} memory={memory} />
+              ))}
+            </div>
+          )}
+
+          {permissions.canUpload && (
+            <AudioRecorder
+              recipeId={recipe.id}
+              familyId={recipe.family_id}
+              onSaved={() => fetchAudioMemories()}
+            />
+          )}
+
+          {audioMemories.length === 0 && !permissions.canUpload && (
+            <div className="rounded-xl border-2 border-dashed border-stone/30 p-8 text-center">
+              <Volume2 className="w-10 h-10 text-stone/30 mx-auto mb-2" />
+              <p className="text-sm font-body text-stone">
+                No audio memories yet
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
