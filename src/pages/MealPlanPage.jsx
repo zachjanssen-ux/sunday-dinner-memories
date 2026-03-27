@@ -148,6 +148,7 @@ export default function MealPlanPage() {
         meal_slot: pickerTarget.slot,
         servings_multiplier: 1,
         notes: '',
+        added_by: currentMember?.id || null,
       })
       setShowPicker(false)
       setPickerTarget(null)

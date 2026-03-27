@@ -1,6 +1,83 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function getToken() {
+  try {
+    const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`
+    const stored = localStorage.getItem(storageKey)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return parsed.access_token || SUPABASE_KEY
+    }
+  } catch {}
+  return SUPABASE_KEY
+}
+
+async function directInsert(table, data) {
+  const token = await getToken()
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Prefer': 'return=representation',
+    },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.message || `Insert failed (${response.status})`)
+  }
+  return response.json()
+}
+
+async function directUpdate(table, id, updates) {
+  const token = await getToken()
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Prefer': 'return=representation',
+    },
+    body: JSON.stringify(updates),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.message || `Update failed (${response.status})`)
+  }
+  return response.json()
+}
+
+async function directDelete(table, id) {
+  const token = await getToken()
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.message || `Delete failed (${response.status})`)
+  }
+}
+
+const ITEMS_SELECT = `
+  *,
+  recipes (
+    id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
+    recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
+  )
+`
+
 const useMealPlanStore = create((set, get) => ({
   currentPlan: null,
   planItems: [],
@@ -37,13 +114,7 @@ const useMealPlanStore = create((set, get) => ({
 
       const { data: items, error: itemsError } = await supabase
         .from('meal_plan_items')
-        .select(`
-          *,
-          recipes (
-            id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
-            recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
-          )
-        `)
+        .select(ITEMS_SELECT)
         .eq('meal_plan_id', planId)
         .order('date', { ascending: true })
 
@@ -57,11 +128,8 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   createPlan: async (data) => {
-    const { error } = await supabase
-      .from('meal_plans')
-      .insert(data)
-
-    if (error) throw error
+    // Use direct fetch for INSERT to avoid auth lock hang
+    await directInsert('meal_plans', data)
 
     // Re-fetch plans to get the new one with server-generated fields
     const { data: plans, error: fetchErr } = await supabase
@@ -78,12 +146,8 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   updatePlan: async (id, updates) => {
-    const { error } = await supabase
-      .from('meal_plans')
-      .update(updates)
-      .eq('id', id)
-
-    if (error) throw error
+    // Use direct fetch for UPDATE to avoid auth lock hang
+    await directUpdate('meal_plans', id, updates)
 
     const { plans, currentPlan } = get()
     set({
@@ -93,13 +157,9 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   deletePlan: async (id) => {
+    // Use direct fetch for DELETE to avoid auth lock hang
     // Items will cascade delete via DB
-    const { error } = await supabase
-      .from('meal_plans')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await directDelete('meal_plans', id)
 
     const { plans, currentPlan } = get()
     set({
@@ -110,22 +170,13 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   addItem: async (item) => {
-    const { error } = await supabase
-      .from('meal_plan_items')
-      .insert(item)
-
-    if (error) throw error
+    // Use direct fetch for INSERT to avoid auth lock hang
+    await directInsert('meal_plan_items', item)
 
     // Re-fetch all items for this plan to get the new one with joins
     const { data: items } = await supabase
       .from('meal_plan_items')
-      .select(`
-        *,
-        recipes (
-          id, title, category, cuisine, original_image_url, prep_time_min, cook_time_min,
-          recipe_ingredients ( id, ingredient_id, quantity, quantity_numeric, unit, notes, sort_order )
-        )
-      `)
+      .select(ITEMS_SELECT)
       .eq('meal_plan_id', item.meal_plan_id)
       .order('date', { ascending: true })
 
@@ -134,24 +185,16 @@ const useMealPlanStore = create((set, get) => ({
   },
 
   removeItem: async (itemId) => {
-    const { error } = await supabase
-      .from('meal_plan_items')
-      .delete()
-      .eq('id', itemId)
-
-    if (error) throw error
+    // Use direct fetch for DELETE to avoid auth lock hang
+    await directDelete('meal_plan_items', itemId)
 
     const { planItems } = get()
     set({ planItems: planItems.filter((i) => i.id !== itemId) })
   },
 
   updateItem: async (itemId, updates) => {
-    const { error } = await supabase
-      .from('meal_plan_items')
-      .update(updates)
-      .eq('id', itemId)
-
-    if (error) throw error
+    // Use direct fetch for UPDATE to avoid auth lock hang
+    await directUpdate('meal_plan_items', itemId, updates)
 
     const { planItems } = get()
     set({
@@ -175,18 +218,14 @@ const useMealPlanStore = create((set, get) => ({
     }
     if (!plan) throw new Error('Plan not found')
 
-    // Create new plan
+    // Create new plan using direct fetch
     const dupFamilyId = familyId || plan.family_id
-    const { error: planErr } = await supabase
-      .from('meal_plans')
-      .insert({
-        family_id: dupFamilyId,
-        title: `${plan.title} (Copy)`,
-        start_date: plan.start_date,
-        end_date: plan.end_date,
-      })
-
-    if (planErr) throw planErr
+    await directInsert('meal_plans', {
+      family_id: dupFamilyId,
+      title: `${plan.title} (Copy)`,
+      start_date: plan.start_date,
+      end_date: plan.end_date,
+    })
 
     // Fetch the newly created plan
     const { data: newPlans } = await supabase
@@ -209,7 +248,7 @@ const useMealPlanStore = create((set, get) => ({
       items = fetchedItems || []
     }
 
-    // Copy items
+    // Copy items using direct fetch
     if (items.length > 0) {
       const newItems = items.map((item) => ({
         meal_plan_id: newPlan.id,
@@ -220,7 +259,7 @@ const useMealPlanStore = create((set, get) => ({
         notes: item.notes || '',
       }))
 
-      await supabase.from('meal_plan_items').insert(newItems)
+      await directInsert('meal_plan_items', newItems)
     }
 
     const { plans } = get()
