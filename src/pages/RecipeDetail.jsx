@@ -7,7 +7,7 @@ import { formatQuantity } from '../lib/utils'
 import { AddToCookbookModal } from '../components/recipes/CookbookModal'
 import AudioMemories from '../components/recipes/AudioMemories'
 import AudioRecorder from '../components/recipes/AudioRecorder'
-import AudioMemoryPlayer from '../components/recipes/AudioMemoryPlayer'
+import AudioMemoryList from '../components/recipes/AudioMemoryList'
 import PhotoGallery from '../components/recipes/PhotoGallery'
 import VideoEmbed from '../components/recipes/VideoEmbed'
 import PDFExportButton from '../components/pdf/PDFExportButton'
@@ -576,10 +576,12 @@ export default function RecipeDetail() {
           </p>
 
           {audioMemories.length > 0 && (
-            <div className="space-y-3 mb-4">
-              {audioMemories.map((memory) => (
-                <AudioMemoryPlayer key={memory.id} memory={memory} />
-              ))}
+            <div className="mb-4">
+              <AudioMemoryList
+                memories={audioMemories}
+                canEdit={permissions.canEdit}
+                onRefresh={fetchAudioMemories}
+              />
             </div>
           )}
 
