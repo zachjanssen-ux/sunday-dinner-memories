@@ -5,14 +5,12 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 async function getToken() {
+  // Use standalone token management — no Supabase client involved
   try {
-    // Try refreshing the session first to handle expired JWTs
-    const { data } = await supabase.auth.refreshSession()
-    if (data?.session?.access_token) {
-      return data.session.access_token
-    }
+    const { getValidToken } = await import('../lib/auth-token.js')
+    return getValidToken()
   } catch {}
-  // Fall back to localStorage
+  // Final fallback to localStorage
   try {
     const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`
     const stored = localStorage.getItem(storageKey)

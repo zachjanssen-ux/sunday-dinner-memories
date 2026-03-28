@@ -198,29 +198,13 @@ const useRecipeStore = create((set, get) => ({
   },
 
   addRecipe: async (recipe, ingredients, instructions, tagIds) => {
-    // Bypass the Supabase JS client for the RPC call to avoid auth lock hangs.
-    // But use the client to refresh the token first (handles expired JWTs).
+    // Completely bypass the Supabase JS client — use standalone token management
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    // Refresh the session to get a fresh token (handles expired JWTs)
-    let accessToken = supabaseKey
-    try {
-      const { data: refreshData } = await supabase.auth.refreshSession()
-      if (refreshData?.session?.access_token) {
-        accessToken = refreshData.session.access_token
-      } else {
-        // Fall back to reading from localStorage
-        const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
-        const stored = localStorage.getItem(storageKey)
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          accessToken = parsed.access_token || supabaseKey
-        }
-      }
-    } catch {
-      // Fall back to anon key — the RPC function is SECURITY DEFINER so it may still work
-    }
+    // Get a valid token (auto-refreshes if expired, no Supabase client involved)
+    const { getValidToken } = await import('../lib/auth-token.js')
+    const accessToken = await getValidToken()
 
     const rpcBody = {
       recipe_data: {
