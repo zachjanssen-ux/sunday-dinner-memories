@@ -198,23 +198,28 @@ const useRecipeStore = create((set, get) => ({
   },
 
   addRecipe: async (recipe, ingredients, instructions, tagIds) => {
-    // Bypass the Supabase JS client entirely — use direct fetch to avoid
-    // auth token lock issues that cause the client to hang
+    // Bypass the Supabase JS client for the RPC call to avoid auth lock hangs.
+    // But use the client to refresh the token first (handles expired JWTs).
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    // Get access token from localStorage directly — bypass supabase.auth.getSession()
-    // which can hang due to the lock mechanism
+    // Refresh the session to get a fresh token (handles expired JWTs)
     let accessToken = supabaseKey
     try {
-      const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
-      const stored = localStorage.getItem(storageKey)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        accessToken = parsed.access_token || supabaseKey
+      const { data: refreshData } = await supabase.auth.refreshSession()
+      if (refreshData?.session?.access_token) {
+        accessToken = refreshData.session.access_token
+      } else {
+        // Fall back to reading from localStorage
+        const storageKey = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`
+        const stored = localStorage.getItem(storageKey)
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          accessToken = parsed.access_token || supabaseKey
+        }
       }
     } catch {
-      // Fall back to anon key
+      // Fall back to anon key — the RPC function is SECURITY DEFINER so it may still work
     }
 
     const rpcBody = {

@@ -6,6 +6,14 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 async function getToken() {
   try {
+    // Try refreshing the session first to handle expired JWTs
+    const { data } = await supabase.auth.refreshSession()
+    if (data?.session?.access_token) {
+      return data.session.access_token
+    }
+  } catch {}
+  // Fall back to localStorage
+  try {
     const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`
     const stored = localStorage.getItem(storageKey)
     if (stored) {
