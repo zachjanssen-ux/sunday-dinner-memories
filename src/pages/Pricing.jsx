@@ -24,12 +24,12 @@ const TIERS = [
     icon: ChefHat,
     description: 'Perfect for getting started with your family recipes.',
     features: [
-      'Up to 5 active family members',
+      'Up to 150 recipes',
+      '30 minutes of audio memories',
       '30 AI recipe scans/month',
-      'Unlimited manual entry',
+      'Up to 5 active family members',
       'Recipe scaling',
       'Tags, cookbooks, favorites',
-      'Audio memories',
       'PDF export',
       'Public recipe sharing',
     ],
@@ -43,12 +43,14 @@ const TIERS = [
     icon: Star,
     description: 'For families who love to cook and plan together.',
     features: [
-      'Everything in Starter',
+      'Up to 500 recipes',
+      '120 minutes of audio memories',
       '100 AI scans/month',
+      'Everything in Starter, plus:',
       'AI-powered search',
+      '"What Can I Make?" ingredient finder',
       'Meal planning calendar',
       'Shopping list generator',
-      '$4 API credit cap',
     ],
     highlight: true,
     badge: 'Most Popular',
@@ -59,13 +61,15 @@ const TIERS = [
     price: 20,
     priceId: 'price_1TEhnDFSvGIfcR4rlnzpc1PF',
     icon: Crown,
-    description: 'The complete family recipe experience.',
+    description: 'The complete family recipe archive.',
     features: [
-      'Everything in Homemade',
+      'Up to 1,000 recipes',
+      '500 minutes of audio memories',
       'Unlimited AI scans',
+      'Everything in Homemade, plus:',
       'Printable cookbook builder',
-      'AI cover art ($0.30 each)',
-      '$7 API credit cap',
+      'QR codes for audio in printed cookbooks',
+      'AI cover art generation',
     ],
     highlight: false,
   },
@@ -241,6 +245,52 @@ export default function Pricing() {
               </div>
             )
           })}
+        </div>
+
+        {/* Add-on Packs */}
+        <div className="max-w-3xl mx-auto mt-12">
+          <h2 className="text-2xl font-display text-cast-iron text-center mb-6">
+            Need more space?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-flour rounded-xl border border-stone/20 p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-honey/15 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-honey" />
+                </div>
+                <div>
+                  <h3 className="font-display text-cast-iron text-lg">Audio Storage Pack</h3>
+                  <p className="text-sienna font-body font-semibold">$3 one-time</p>
+                </div>
+              </div>
+              <p className="font-body text-sunday-brown/70 text-sm mb-3">
+                Add 120 extra minutes of audio memory storage to your plan.
+                Perfect for families with lots of stories to preserve.
+              </p>
+              <p className="font-body text-stone text-xs">
+                Available on Homemade and Heirloom plans
+              </p>
+            </div>
+
+            <div className="bg-flour rounded-xl border border-stone/20 p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-sienna/15 rounded-lg flex items-center justify-center">
+                  <ChefHat className="w-5 h-5 text-sienna" />
+                </div>
+                <div>
+                  <h3 className="font-display text-cast-iron text-lg">Extra Scan Pack</h3>
+                  <p className="text-sienna font-body font-semibold">$2 one-time</p>
+                </div>
+              </div>
+              <p className="font-body text-sunday-brown/70 text-sm mb-3">
+                Add 50 extra AI recipe scans to your monthly allowance.
+                Great for digitizing a whole recipe box at once.
+              </p>
+              <p className="font-body text-stone text-xs">
+                Available on all plans
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Promo Code */}
