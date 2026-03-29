@@ -3,6 +3,7 @@ import { Mic, Square, Play, Pause, Save, X, Loader2, Upload } from 'lucide-react
 import { supabase } from '../../lib/supabase'
 import { insert as directInsert } from '../../lib/supabaseDirectFetch'
 import useAuthStore from '../../store/authStore'
+import useSubscriptionStore from '../../store/subscriptionStore'
 import QRCode from 'qrcode'
 import toast from 'react-hot-toast'
 
@@ -140,6 +141,15 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
 
   const handleSave = async () => {
     if (!audioBlob) return
+
+    // Check audio minute limit
+    const { canAddAudio, getPlanLimits } = useSubscriptionStore.getState()
+    if (!canAddAudio()) {
+      const limits = getPlanLimits()
+      toast.error(`You've reached your audio limit (${limits?.maxAudioMinutes || 0} minutes). Upgrade your plan for more.`)
+      return
+    }
+
     setSaving(true)
 
     try {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Save, RotateCcw, PenLine, Plus, Trash2, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import useRecipeStore from '../../store/recipeStore'
 import useAuthStore from '../../store/authStore'
+import useSubscriptionStore from '../../store/subscriptionStore'
 import { parseIngredientText } from '../../lib/utils'
 
 export default function ScanReview({ data, imageDataUrl, onRescan, source = 'scanned', existingRecipeId }) {
@@ -97,6 +98,14 @@ export default function ScanReview({ data, imageDataUrl, onRescan, source = 'sca
     // Guard: make sure we have auth context
     if (!currentFamily?.id || !currentMember?.id) {
       setError('Not logged in or no family set. Please refresh and try again.')
+      return
+    }
+
+    // Check recipe limit
+    const { canAddRecipe, getPlanLimits } = useSubscriptionStore.getState()
+    if (!canAddRecipe()) {
+      const limits = getPlanLimits()
+      setError(`You've reached your recipe limit (${limits?.maxRecipes || 0} recipes). Upgrade your plan to add more.`)
       return
     }
 

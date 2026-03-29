@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 const PLAN_LIMITS = {
   starter: {
     scansPerMonth: 30,
+    maxRecipes: 150,
+    maxAudioMinutes: 30,
     apiCreditCap: null,
     aiSearch: false,
     mealPlan: false,
@@ -13,6 +15,8 @@ const PLAN_LIMITS = {
   },
   homemade: {
     scansPerMonth: 100,
+    maxRecipes: 500,
+    maxAudioMinutes: 120,
     apiCreditCap: 4.0,
     aiSearch: true,
     mealPlan: true,
@@ -22,6 +26,8 @@ const PLAN_LIMITS = {
   },
   heirloom: {
     scansPerMonth: Infinity,
+    maxRecipes: 1000,
+    maxAudioMinutes: 500,
     apiCreditCap: 7.0,
     aiSearch: true,
     mealPlan: true,
@@ -99,10 +105,10 @@ const useSubscriptionStore = create((set, get) => ({
 
   getUsagePercentage: () => {
     const { subscription, usage } = get()
-    if (!subscription || !usage) return { scans: 0, credits: 0 }
+    if (!subscription || !usage) return { scans: 0, credits: 0, recipes: 0, audio: 0 }
 
     const limits = PLAN_LIMITS[subscription.plan_tier]
-    if (!limits) return { scans: 0, credits: 0 }
+    if (!limits) return { scans: 0, credits: 0, recipes: 0, audio: 0 }
 
     const scanPct =
       limits.scansPerMonth === Infinity
@@ -114,7 +120,26 @@ const useSubscriptionStore = create((set, get) => ({
         ? 0
         : Math.min(100, Math.round(((usage.api_credit_spent || 0) / limits.apiCreditCap) * 100))
 
-    return { scans: scanPct, credits: creditPct }
+    const recipePct = Math.min(100, Math.round(((usage.recipe_count || 0) / limits.maxRecipes) * 100))
+    const audioPct = Math.min(100, Math.round(((usage.audio_minutes_used || 0) / limits.maxAudioMinutes) * 100))
+
+    return { scans: scanPct, credits: creditPct, recipes: recipePct, audio: audioPct }
+  },
+
+  canAddRecipe: () => {
+    const { subscription, usage } = get()
+    if (!subscription) return false
+    const limits = PLAN_LIMITS[subscription.plan_tier]
+    if (!limits) return false
+    return (usage?.recipe_count || 0) < limits.maxRecipes
+  },
+
+  canAddAudio: () => {
+    const { subscription, usage } = get()
+    if (!subscription) return false
+    const limits = PLAN_LIMITS[subscription.plan_tier]
+    if (!limits) return false
+    return (usage?.audio_minutes_used || 0) < limits.maxAudioMinutes
   },
 
   getRequiredPlan: (feature) => {

@@ -121,9 +121,19 @@ export default function UsageCard() {
       {limits && usage && (
         <div className="mb-4">
           <ProgressBar
+            value={usage.recipe_count || 0}
+            max={limits.maxRecipes}
+            label="Recipes"
+          />
+          <ProgressBar
+            value={Math.round(usage.audio_minutes_used || 0)}
+            max={limits.maxAudioMinutes}
+            label="Audio Minutes"
+          />
+          <ProgressBar
             value={usage.scan_count || 0}
             max={limits.scansPerMonth}
-            label="AI Scans"
+            label="AI Scans (this month)"
           />
           {limits.apiCreditCap && (
             <ProgressBar
