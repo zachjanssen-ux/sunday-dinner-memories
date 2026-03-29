@@ -40,14 +40,29 @@ export default function AudioRecorder({ recipeId, familyId, onSaved }) {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Request mono audio at low sample rate for smaller file sizes
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,          // Mono (half the size of stereo)
+          sampleRate: 22050,        // Voice quality (not music quality)
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      })
       streamRef.current = stream
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      })
+      // Use Opus codec at ~32kbps for voice — very small files
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm'
+
+      const recorderOptions = { mimeType }
+      // Set low bitrate if browser supports it (Chrome does)
+      if (typeof MediaRecorder.isTypeSupported === 'function') {
+        recorderOptions.audioBitsPerSecond = 32000 // 32kbps — great for voice
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions)
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
