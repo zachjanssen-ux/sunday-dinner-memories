@@ -26,10 +26,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'priceId, familyId, and userId are required' })
     }
 
+    // Look up the price to determine if it's recurring or one-time
+    const price = await stripe.prices.retrieve(priceId)
+    const isRecurring = price.type === 'recurring'
+
     const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://sundaydinnermemories.com'
 
     const sessionConfig = {
-      mode: 'subscription',
+      mode: isRecurring ? 'subscription' : 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?subscription=success`,
       cancel_url: `${origin}/pricing`,

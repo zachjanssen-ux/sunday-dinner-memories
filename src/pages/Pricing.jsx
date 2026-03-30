@@ -65,7 +65,7 @@ const TIERS = [
     features: [
       'Up to 1,000 recipes',
       '500 minutes of audio memories',
-      'Unlimited AI scans',
+      '300 AI scans/month',
       'Everything in Homemade, plus:',
       'Printable cookbook builder',
       'QR codes for audio in printed cookbooks',
@@ -115,6 +115,36 @@ export default function Pricing() {
       window.location.href = data.url
     } catch (err) {
       console.error('Checkout error:', err)
+      toast.error(err.message || 'Failed to start checkout')
+    } finally {
+      setLoadingTier(null)
+    }
+  }
+
+  const handleAddonPurchase = async (priceId, addonType) => {
+    if (!user) {
+      navigate('/register')
+      return
+    }
+
+    setLoadingTier(addonType)
+    try {
+      const response = await fetch('/api/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId,
+          familyId: currentFamily?.id || 'pending',
+          userId: user.id,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to create checkout')
+
+      window.location.href = data.url
+    } catch (err) {
+      console.error('Addon checkout error:', err)
       toast.error(err.message || 'Failed to start checkout')
     } finally {
       setLoadingTier(null)
@@ -248,50 +278,60 @@ export default function Pricing() {
         </div>
 
         {/* Add-on Packs */}
-        <div className="max-w-3xl mx-auto mt-12">
-          <h2 className="text-2xl font-display text-cast-iron text-center mb-6">
-            Need more space?
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-flour rounded-xl border border-stone/20 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-honey/15 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-honey" />
+        {user && subscription && (
+          <div className="max-w-3xl mx-auto mt-12">
+            <h2 className="text-2xl font-display text-cast-iron text-center mb-6">
+              Need more space?
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-flour rounded-xl border border-stone/20 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-honey/15 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-honey" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-cast-iron text-lg">Audio Storage Pack</h3>
+                    <p className="text-sienna font-body font-semibold">$3/month</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-display text-cast-iron text-lg">Audio Storage Pack</h3>
-                  <p className="text-sienna font-body font-semibold">$3 one-time</p>
-                </div>
+                <p className="font-body text-sunday-brown/70 text-sm mb-4">
+                  Add 120 extra minutes of audio memory storage.
+                  Perfect for families with lots of stories to preserve.
+                </p>
+                <button
+                  onClick={() => handleAddonPurchase('price_1TGTTVFSvGIfcR4rofPmh0cQ', 'audio')}
+                  disabled={!!loadingTier}
+                  className="w-full py-2.5 rounded-lg bg-honey text-flour font-body font-semibold text-sm hover:bg-honey/90 transition-colors disabled:opacity-50"
+                >
+                  {loadingTier === 'audio' ? 'Loading...' : 'Add Audio Storage'}
+                </button>
               </div>
-              <p className="font-body text-sunday-brown/70 text-sm mb-3">
-                Add 120 extra minutes of audio memory storage to your plan.
-                Perfect for families with lots of stories to preserve.
-              </p>
-              <p className="font-body text-stone text-xs">
-                Available on Homemade and Heirloom plans
-              </p>
-            </div>
 
-            <div className="bg-flour rounded-xl border border-stone/20 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-sienna/15 rounded-lg flex items-center justify-center">
-                  <ChefHat className="w-5 h-5 text-sienna" />
+              <div className="bg-flour rounded-xl border border-stone/20 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-sienna/15 rounded-lg flex items-center justify-center">
+                    <ChefHat className="w-5 h-5 text-sienna" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-cast-iron text-lg">Extra Scan Pack</h3>
+                    <p className="text-sienna font-body font-semibold">$2 one-time</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-display text-cast-iron text-lg">Extra Scan Pack</h3>
-                  <p className="text-sienna font-body font-semibold">$2 one-time</p>
-                </div>
+                <p className="font-body text-sunday-brown/70 text-sm mb-4">
+                  Add 50 extra AI recipe scans.
+                  Great for digitizing a whole recipe box at once.
+                </p>
+                <button
+                  onClick={() => handleAddonPurchase('price_1TGTWNFSvGIfcR4rDkEKFXsC', 'scans')}
+                  disabled={!!loadingTier}
+                  className="w-full py-2.5 rounded-lg bg-sienna text-flour font-body font-semibold text-sm hover:bg-sienna/90 transition-colors disabled:opacity-50"
+                >
+                  {loadingTier === 'scans' ? 'Loading...' : 'Add Scan Pack'}
+                </button>
               </div>
-              <p className="font-body text-sunday-brown/70 text-sm mb-3">
-                Add 50 extra AI recipe scans to your monthly allowance.
-                Great for digitizing a whole recipe box at once.
-              </p>
-              <p className="font-body text-stone text-xs">
-                Available on all plans
-              </p>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Promo Code */}
         <div className="max-w-md mx-auto mt-10 bg-flour rounded-xl border border-stone/20 p-6">

@@ -25,7 +25,7 @@ const PLAN_LIMITS = {
     imageGen: false,
   },
   heirloom: {
-    scansPerMonth: Infinity,
+    scansPerMonth: 300,
     maxRecipes: 1000,
     maxAudioMinutes: 500,
     apiCreditCap: 7.0,
