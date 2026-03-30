@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { priceId, familyId, userId, promoCode } = req.body
+    const { priceId, familyId, userId, promoCode, addonType } = req.body
 
     if (!priceId || !familyId || !userId) {
       return res.status(400).json({ error: 'priceId, familyId, and userId are required' })
@@ -37,8 +37,15 @@ export default async function handler(req, res) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?subscription=success`,
       cancel_url: `${origin}/pricing`,
-      metadata: { familyId, userId },
+      metadata: { familyId, userId, ...(addonType && { addonType }) },
       client_reference_id: familyId,
+    }
+
+    // For recurring add-ons, attach metadata to the subscription so invoice.paid can find the familyId
+    if (isRecurring && addonType) {
+      sessionConfig.subscription_data = {
+        metadata: { familyId, userId, addonType },
+      }
     }
 
     // If user entered a promo code, let Stripe validate it

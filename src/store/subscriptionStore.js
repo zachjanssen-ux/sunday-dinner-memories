@@ -110,10 +110,14 @@ const useSubscriptionStore = create((set, get) => ({
     const limits = PLAN_LIMITS[subscription.plan_tier]
     if (!limits) return { scans: 0, credits: 0, recipes: 0, audio: 0 }
 
+    // Include bonus from add-on packs
+    const totalScansAllowed = (limits.scansPerMonth === Infinity) ? Infinity : limits.scansPerMonth + (usage.bonus_scans || 0)
+    const totalAudioAllowed = limits.maxAudioMinutes + (usage.bonus_audio_minutes || 0)
+
     const scanPct =
-      limits.scansPerMonth === Infinity
+      totalScansAllowed === Infinity
         ? 0
-        : Math.min(100, Math.round(((usage.scan_count || 0) / limits.scansPerMonth) * 100))
+        : Math.min(100, Math.round(((usage.scan_count || 0) / totalScansAllowed) * 100))
 
     const creditPct =
       !limits.apiCreditCap
@@ -121,7 +125,7 @@ const useSubscriptionStore = create((set, get) => ({
         : Math.min(100, Math.round(((usage.api_credit_spent || 0) / limits.apiCreditCap) * 100))
 
     const recipePct = Math.min(100, Math.round(((usage.recipe_count || 0) / limits.maxRecipes) * 100))
-    const audioPct = Math.min(100, Math.round(((usage.audio_minutes_used || 0) / limits.maxAudioMinutes) * 100))
+    const audioPct = Math.min(100, Math.round(((usage.audio_minutes_used || 0) / totalAudioAllowed) * 100))
 
     return { scans: scanPct, credits: creditPct, recipes: recipePct, audio: audioPct }
   },
@@ -139,7 +143,8 @@ const useSubscriptionStore = create((set, get) => ({
     if (!subscription) return false
     const limits = PLAN_LIMITS[subscription.plan_tier]
     if (!limits) return false
-    return (usage?.audio_minutes_used || 0) < limits.maxAudioMinutes
+    const totalAudioAllowed = limits.maxAudioMinutes + (usage?.bonus_audio_minutes || 0)
+    return (usage?.audio_minutes_used || 0) < totalAudioAllowed
   },
 
   getRequiredPlan: (feature) => {

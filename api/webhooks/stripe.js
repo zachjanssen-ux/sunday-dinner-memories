@@ -8,6 +8,12 @@ const PRICE_TO_TIER = {
   'price_1TEhnDFSvGIfcR4rlnzpc1PF': 'heirloom',
 }
 
+// Add-on pack price IDs
+const ADDON_PRICES = {
+  'price_1TGTTVFSvGIfcR4rofPmh0cQ': { type: 'audio', bonusMinutes: 120 },
+  'price_1TGTWNFSvGIfcR4rDkEKFXsC': { type: 'scan', bonusScans: 50 },
+}
+
 // Use the service role key for webhook operations (bypasses RLS)
 // Falls back to anon key if service role not set
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
@@ -125,14 +131,65 @@ export default async function handler(req, res) {
           break
         }
 
+        // --- One-time payment (e.g. Extra Scan Pack) ---
         if (!subscriptionId) {
-          console.log('No subscription in checkout session (might be one-time payment)')
+          const lineItems = await stripe.checkout.sessions.listLineItems(session.id)
+          const priceId = lineItems.data[0]?.price?.id
+
+          const addon = priceId ? ADDON_PRICES[priceId] : null
+          if (addon) {
+            console.log(`Add-on one-time purchase: family=${familyId}, type=${addon.type}, price=${priceId}`)
+            // Fetch current usage to increment bonus
+            const currentUsage = await supabaseQuery('usage_tracking', { family_id: familyId })
+            if (addon.type === 'scan') {
+              const currentBonus = currentUsage?.bonus_scans || 0
+              await supabaseUpdate('usage_tracking', {
+                bonus_scans: currentBonus + addon.bonusScans,
+                last_updated: new Date().toISOString(),
+              }, { family_id: familyId })
+              console.log(`Added ${addon.bonusScans} bonus scans for family ${familyId} (total: ${currentBonus + addon.bonusScans})`)
+            } else if (addon.type === 'audio') {
+              const currentBonus = currentUsage?.bonus_audio_minutes || 0
+              await supabaseUpdate('usage_tracking', {
+                bonus_audio_minutes: currentBonus + addon.bonusMinutes,
+                last_updated: new Date().toISOString(),
+              }, { family_id: familyId })
+              console.log(`Added ${addon.bonusMinutes} bonus audio minutes for family ${familyId}`)
+            }
+          } else {
+            console.log('One-time payment with unknown price, skipping')
+          }
           break
         }
 
-        // Fetch the subscription to get the price ID
+        // --- Recurring subscription ---
         const sub = await stripe.subscriptions.retrieve(subscriptionId)
         const priceId = sub.items.data[0]?.price?.id
+
+        // Check if this is a recurring add-on (Audio Storage Pack) vs a plan subscription
+        const addon = priceId ? ADDON_PRICES[priceId] : null
+        if (addon) {
+          console.log(`Add-on subscription started: family=${familyId}, type=${addon.type}, price=${priceId}`)
+          const currentUsage = await supabaseQuery('usage_tracking', { family_id: familyId })
+          if (addon.type === 'audio') {
+            const currentBonus = currentUsage?.bonus_audio_minutes || 0
+            await supabaseUpdate('usage_tracking', {
+              bonus_audio_minutes: currentBonus + addon.bonusMinutes,
+              last_updated: new Date().toISOString(),
+            }, { family_id: familyId })
+            console.log(`Added ${addon.bonusMinutes} bonus audio minutes for family ${familyId}`)
+          } else if (addon.type === 'scan') {
+            const currentBonus = currentUsage?.bonus_scans || 0
+            await supabaseUpdate('usage_tracking', {
+              bonus_scans: currentBonus + addon.bonusScans,
+              last_updated: new Date().toISOString(),
+            }, { family_id: familyId })
+            console.log(`Added ${addon.bonusScans} bonus scans for family ${familyId}`)
+          }
+          break
+        }
+
+        // --- Regular plan subscription ---
         const planTier = PRICE_TO_TIER[priceId] || 'starter'
 
         console.log(`Creating subscription: family=${familyId}, tier=${planTier}, price=${priceId}`)
@@ -169,6 +226,32 @@ export default async function handler(req, res) {
 
         const sub = await stripe.subscriptions.retrieve(subscriptionId)
         const priceId = sub.items.data[0]?.price?.id
+
+        // Check if this invoice is for a recurring add-on (Audio Storage Pack)
+        const addon = priceId ? ADDON_PRICES[priceId] : null
+        if (addon) {
+          // For recurring add-ons, top up the bonus on each renewal
+          // Find the family via checkout metadata or customer lookup
+          const familyId = invoice.subscription_details?.metadata?.familyId
+            || sub.metadata?.familyId
+
+          if (familyId) {
+            const currentUsage = await supabaseQuery('usage_tracking', { family_id: familyId })
+            if (addon.type === 'audio') {
+              const currentBonus = currentUsage?.bonus_audio_minutes || 0
+              await supabaseUpdate('usage_tracking', {
+                bonus_audio_minutes: currentBonus + addon.bonusMinutes,
+                last_updated: new Date().toISOString(),
+              }, { family_id: familyId })
+              console.log(`Audio pack renewal: +${addon.bonusMinutes} min for family ${familyId}`)
+            }
+          } else {
+            console.log('Add-on invoice.paid but no familyId found in metadata')
+          }
+          break
+        }
+
+        // --- Regular plan renewal ---
         const planTier = PRICE_TO_TIER[priceId] || 'starter'
 
         // Find the family by stripe_subscription_id
@@ -185,7 +268,7 @@ export default async function handler(req, res) {
             status: 'active',
           }, { family_id: existingSub.family_id })
 
-          // Reset usage for new billing period
+          // Reset usage for new billing period (but NOT bonus — bonuses persist)
           await supabaseUpdate('usage_tracking', {
             scan_count: 0,
             api_credit_spent: 0,
@@ -199,6 +282,13 @@ export default async function handler(req, res) {
       case 'customer.subscription.updated': {
         const sub = event.data.object
         const priceId = sub.items.data[0]?.price?.id
+
+        // Skip add-on subscriptions — they don't affect the plan tier
+        if (ADDON_PRICES[priceId]) {
+          console.log(`Add-on subscription updated (${priceId}), skipping tier change`)
+          break
+        }
+
         const planTier = PRICE_TO_TIER[priceId] || 'starter'
 
         await supabaseUpdate('user_subscriptions', {
@@ -212,6 +302,13 @@ export default async function handler(req, res) {
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object
+        const priceId = sub.items.data[0]?.price?.id
+
+        // If an add-on subscription is canceled, don't touch the main subscription status
+        if (ADDON_PRICES[priceId]) {
+          console.log(`Add-on subscription canceled (${priceId}), main plan unaffected`)
+          break
+        }
 
         await supabaseUpdate('user_subscriptions', {
           status: 'canceled',

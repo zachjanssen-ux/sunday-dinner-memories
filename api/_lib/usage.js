@@ -97,13 +97,15 @@ export async function checkUsageLimits(familyId, actionType) {
     return { allowed: false, error: 'Failed to check usage limits' }
   }
 
-  // For scan-type actions, check scan count
+  // For scan-type actions, check scan count (include bonus from add-on packs)
   if (actionType === 'scan') {
     const scansUsed = usage?.scans_used || 0
-    if (limits.scansPerMonth !== Infinity && scansUsed >= limits.scansPerMonth) {
+    const bonusScans = usage?.bonus_scans || 0
+    const totalScansAllowed = limits.scansPerMonth + bonusScans
+    if (limits.scansPerMonth !== Infinity && scansUsed >= totalScansAllowed) {
       return {
         allowed: false,
-        error: `You've used all ${limits.scansPerMonth} AI scans for this billing period. Upgrade your plan for more.`,
+        error: `You've used all ${totalScansAllowed} AI scans for this billing period. Purchase an Extra Scan Pack or upgrade your plan for more.`,
       }
     }
   }

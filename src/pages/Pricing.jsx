@@ -136,6 +136,7 @@ export default function Pricing() {
           priceId,
           familyId: currentFamily?.id || 'pending',
           userId: user.id,
+          addonType,
         }),
       })
 
